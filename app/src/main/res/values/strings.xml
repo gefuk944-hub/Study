@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Zero Recorder</string>
+    <string name="notification_channel_recording_name">Screen Recording</string>
+    <string name="notification_channel_recording_desc">Active recording timer and quick controls</string>
+    <string name="notification_recording_title">Zero Recorder Active</string>
+    <string name="notification_paused_title">Zero Recorder Paused</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_screenshot">Snap</string>
+    <string name="action_mute_mic">Mute Mic</string>
+    <string name="action_unmute_mic">Unmute Mic</string>
+    <string name="cd_back">Navigate back</string>
+    <string name="cd_record_start">Start recording</string>
+    <string name="cd_record_stop">Stop recording</string>
+    <string name="cd_screenshot">Take screenshot</string>
+    <string name="cd_floating_panel">Toggle floating control panel</string>
+</resources>

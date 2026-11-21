@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Microphone capture for player voice and live audio studio monitoring -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Visible foreground service notification on Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Foreground service permissions for MediaProjection + Microphone capture (Android 14+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Optional floating gameplay overlay controls (requested only when enabled by user) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Haptic feedback for tactile one-handed controls -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Scoped storage fallback only for legacy Android 7-9 (API 24-28) -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyApplication">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.MyApplication">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Transparent helper activity for requesting MediaProjection consent from floating overlay -->
+        <activity
+            android:name=".recording.ProjectionPermissionActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Primary screen & 3-source audio recording foreground service -->
+        <service
+            android:name=".recording.ScreenRecordingService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection|microphone" />
+
+        <!-- Lightweight floating gameplay control overlay service -->
+        <service
+            android:name=".overlay.FloatingControlService"
+            android:exported="false" />
+    </application>
+
+</manifest>

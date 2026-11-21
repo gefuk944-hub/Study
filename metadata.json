@@ -1,0 +1,6 @@
+{
+  "name": "Zero Recorder",
+  "description": "High-performance offline Android gaming screen recorder with 3-source audio mixing (game audio, microphone, teammate voice), real DSP noise cancellation, wind reduction, floating controls, 2K/60FPS hardware encoding, and automatic gallery saving.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
