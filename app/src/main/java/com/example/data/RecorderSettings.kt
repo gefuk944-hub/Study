@@ -62,32 +62,32 @@ enum class NoiseCancellationLevel(
     val useAndroidNs: Boolean
 ) {
     OFF("Off", -96f, 0f, false),
-    LOW("Low", -52f, -10f, true),
-    MEDIUM("Medium", -44f, -18f, true),
-    HIGH("High", -38f, -26f, true),
-    STRONG("Strong", -32f, -34f, true)
+    LOW("Low", -52f, -12f, false),
+    MEDIUM("Medium", -45f, -20f, true),
+    HIGH("High", -39f, -28f, true),
+    STRONG("Strong", -34f, -36f, true)
 }
 
 enum class MicAudioSource(val label: String, val androidSource: Int, val description: String) {
-    VOICE_COMMUNICATION(
-        "Voice Comm",
-        MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-        "Best for echo/noise suppression during squad voice chat"
-    ),
     MIC(
-        "Standard Mic",
+        "Studio Mic",
         MediaRecorder.AudioSource.MIC,
-        "Natural full-range microphone capture"
+        "Recommended: Clean full-range 48 kHz studio voice without phone-call distortion"
     ),
     CAMCORDER(
         "Camcorder",
         MediaRecorder.AudioSource.CAMCORDER,
-        "Tuned for video recording with balanced ambient pickup"
+        "Wideband microphone tuned for smooth video recording"
     ),
     UNPROCESSED(
         "Raw / Unprocessed",
         MediaRecorder.AudioSource.UNPROCESSED,
-        "Minimal OS processing; relies on Zero DSP pipeline"
+        "Minimal OS processing; relies purely on Zero Studio DSP"
+    ),
+    VOICE_COMMUNICATION(
+        "Voice Comm",
+        MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+        "Telephony echo-canceling mode (may lower voice warmth on some devices)"
     )
 }
 
@@ -103,29 +103,29 @@ enum class AudioPreset(
 ) {
     GAMING(
         label = "Gaming",
-        gameVolume = 0.85f,
+        gameVolume = 0.90f,
         micVolume = 1.0f,
-        micGainDb = 3f,
-        teamVolume = 1.05f,
+        micGainDb = 0f,
+        teamVolume = 0.90f,
         noiseCancellation = NoiseCancellationLevel.MEDIUM,
         voiceEnhancement = true,
         smartVoiceBalance = true
     ),
     VOICE_FOCUS(
-        label = "Voice Focus",
-        gameVolume = 0.55f,
-        micVolume = 1.2f,
-        micGainDb = 5f,
-        teamVolume = 1.25f,
+        label = "Studio Voice",
+        gameVolume = 0.65f,
+        micVolume = 1.15f,
+        micGainDb = 2f,
+        teamVolume = 0.65f,
         noiseCancellation = NoiseCancellationLevel.HIGH,
         voiceEnhancement = true,
         smartVoiceBalance = true
     ),
     BALANCED(
         label = "Balanced",
-        gameVolume = 0.90f,
-        micVolume = 0.95f,
-        micGainDb = 1.5f,
+        gameVolume = 0.95f,
+        micVolume = 1.0f,
+        micGainDb = 0f,
         teamVolume = 0.95f,
         noiseCancellation = NoiseCancellationLevel.LOW,
         voiceEnhancement = true,
@@ -143,10 +143,10 @@ enum class AudioPreset(
     ),
     CUSTOM(
         label = "Custom",
-        gameVolume = 0.85f,
+        gameVolume = 0.90f,
         micVolume = 1.0f,
-        micGainDb = 3f,
-        teamVolume = 1.0f,
+        micGainDb = 0f,
+        teamVolume = 0.90f,
         noiseCancellation = NoiseCancellationLevel.MEDIUM,
         voiceEnhancement = true,
         smartVoiceBalance = true
@@ -203,38 +203,39 @@ data class RecorderSettings(
     val adaptiveFps: Boolean = true,
     val adaptiveBitrate: Boolean = true,
 
-    // Three-Source Audio Mixer
+    // Unified Audio Mixer (1. Game & Teammates Audio + 2. My Microphone)
     val audioPreset: AudioPreset = AudioPreset.GAMING,
     val gameAudioEnabled: Boolean = true,
-    val gameAudioVolume: Float = 0.85f, // 0.0..1.5
+    val gameAudioVolume: Float = 0.90f, // 0.0..1.5
     val gameAudioMuted: Boolean = false,
-    val gameOriginalAudioMode: Boolean = true, // Bypass all NC on game sound
+    val gameOriginalAudioMode: Boolean = true, // Bypass all NC on game & teammates sound
 
     val micEnabled: Boolean = true,
     val micVolume: Float = 1.0f, // 0.0..1.5
-    val micGainDb: Float = 3.0f, // -6..+15 dB
+    val micGainDb: Float = 0.0f, // -6..+12 dB (0 dB clean studio default)
     val micMuted: Boolean = false,
-    val micSource: MicAudioSource = MicAudioSource.VOICE_COMMUNICATION,
+    val micSource: MicAudioSource = MicAudioSource.MIC,
 
+    // Kept synced with unified Game & Teammates Audio for compatibility
     val teamVoiceEnabled: Boolean = true,
-    val teamVoiceVolume: Float = 1.05f, // 0.0..1.5
+    val teamVoiceVolume: Float = 0.90f,
     val teamVoiceMuted: Boolean = false,
-    val smartVoiceBalance: Boolean = true, // Duck game slightly when voices speak
+    val smartVoiceBalance: Boolean = true, // Smoothly duck game slightly when you speak
     val clippingProtection: Boolean = true,
 
-    // Noise Cancellation & Wind & DSP Enhancement (Mic-only)
+    // Noise Cancellation & Wind & Studio Voice Enhancement (Mic-only)
     val noiseCancellation: NoiseCancellationLevel = NoiseCancellationLevel.MEDIUM,
     val windReductionEnabled: Boolean = false,
-    val windReductionIntensity: Float = 0.55f, // 0.0..1.0
+    val windReductionIntensity: Float = 0.50f, // 0.0..1.0
     val voiceEnhancementEnabled: Boolean = true,
-    val autoGainControl: Boolean = true,
-    val echoReduction: Boolean = true,
+    val autoGainControl: Boolean = false, // Disabled by default to avoid telephony hiss pumping
+    val echoReduction: Boolean = false,   // Only needed in Voice Comm mode
 
     // Custom saved audio preset values
-    val customGameVolume: Float = 0.85f,
+    val customGameVolume: Float = 0.90f,
     val customMicVolume: Float = 1.0f,
-    val customMicGainDb: Float = 3.0f,
-    val customTeamVolume: Float = 1.05f,
+    val customMicGainDb: Float = 0.0f,
+    val customTeamVolume: Float = 0.90f,
     val customNoiseCancellation: NoiseCancellationLevel = NoiseCancellationLevel.MEDIUM,
     val customVoiceEnhancement: Boolean = true,
 

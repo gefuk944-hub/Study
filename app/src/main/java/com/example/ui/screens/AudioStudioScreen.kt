@@ -24,10 +24,8 @@ import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.NoiseAware
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RestartAlt
@@ -130,7 +128,7 @@ fun AudioStudioScreen(
                         color = TextPrimary
                     )
                     Text(
-                        "3-Source Synchronized Mixer • Mic-Only DSP Processing",
+                        "Unified Game + Teammates Audio • Studio Clarity Microphone DSP",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -184,14 +182,14 @@ fun AudioStudioScreen(
                 }
             }
 
-            // CHANNEL 1: GAME AUDIO
+            // CHANNEL 1 (MERGED): GAME & TEAMMATES AUDIO
             item {
                 MixerChannelCard(
-                    title = "1. Game Audio",
+                    title = "1. Game & Teammates Audio",
                     subtitle = if (capabilities.supportsInternalAudioCapture)
-                        "Internal playback capture • Footsteps, gunshots & OST preserved"
+                        "Unified internal capture: Game sounds, footsteps, gunshots & teammate voice recorded together"
                     else
-                        "Requires Android 10 (API 29+) for internal game audio capture",
+                        "Requires Android 10 (API 29+) for internal game & teammates audio capture",
                     icon = Icons.Default.SportsEsports,
                     accent = ElectricBlue,
                     enabled = settings.gameAudioEnabled && capabilities.supportsInternalAudioCapture,
@@ -199,30 +197,44 @@ fun AudioStudioScreen(
                     volume = settings.gameAudioVolume,
                     liveLevel = if (isLiveRecording) recordingState.audioTelemetry.gameLevel else 0f,
                     statusLabel = when {
-                        !capabilities.supportsInternalAudioCapture -> "UNSUPPORTED"
+                        !capabilities.supportsInternalAudioCapture -> "ANDROID 10+"
                         !settings.gameAudioEnabled -> "OFF"
                         settings.gameAudioMuted -> "MUTED"
                         isLiveRecording -> recordingState.audioTelemetry.gameStatus.label.uppercase()
-                        else -> "ORIGINAL HQ"
+                        else -> "GAME + TEAM HQ"
                     },
                     onToggleEnabled = { checked ->
                         if (capabilities.supportsInternalAudioCapture) {
-                            onUpdateSettings { it.copy(gameAudioEnabled = checked) }
+                            onUpdateSettings {
+                                it.copy(
+                                    gameAudioEnabled = checked,
+                                    teamVoiceEnabled = checked
+                                )
+                            }
                         }
                     },
                     onToggleMute = {
-                        onUpdateSettings { it.copy(gameAudioMuted = !it.gameAudioMuted) }
+                        onUpdateSettings {
+                            val nextMute = !it.gameAudioMuted
+                            it.copy(gameAudioMuted = nextMute, teamVoiceMuted = nextMute)
+                        }
                     },
                     onVolumeChange = { vol ->
-                        onUpdateSettings { it.copy(gameAudioVolume = vol, audioPreset = AudioPreset.CUSTOM) }
+                        onUpdateSettings {
+                            it.copy(
+                                gameAudioVolume = vol,
+                                teamVoiceVolume = vol,
+                                audioPreset = AudioPreset.CUSTOM
+                            )
+                        }
                     },
                     sliderTestTag = "game_audio_volume_slider",
                     muteTestTag = "game_audio_mute_button"
                 ) {
                     Spacer(modifier = Modifier.height(6.dp))
                     SettingToggleRow(
-                        title = "Original Audio Quality Mode",
-                        subtitle = "Zero noise cancellation on game sounds to preserve footsteps & spatial cues",
+                        title = "Original Stereo Quality (Zero NC)",
+                        subtitle = "Untouched 48 kHz Stereo capture so footsteps, effects & squad chat stay crystal-clear",
                         checked = settings.gameOriginalAudioMode,
                         onCheckedChange = { checked ->
                             onUpdateSettings { it.copy(gameOriginalAudioMode = checked) }
@@ -230,14 +242,53 @@ fun AudioStudioScreen(
                         enabled = capabilities.supportsInternalAudioCapture,
                         accentColor = ElectricBlue
                     )
+                    SettingToggleRow(
+                        title = "Smart Voice Balance",
+                        subtitle = "Smoothly lowers game explosions slightly (~3 dB) while you speak so your callouts stand out",
+                        checked = settings.smartVoiceBalance,
+                        onCheckedChange = { checked ->
+                            onUpdateSettings { it.copy(smartVoiceBalance = checked) }
+                        },
+                        enabled = capabilities.supportsInternalAudioCapture,
+                        accentColor = CyberCyan
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = CarbonSurfaceHigh,
+                        border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.25f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = CyberCyan,
+                                modifier = Modifier.size(16.dp).padding(top = 2.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isLiveRecording && recordingState.audioTelemetry.teamVoiceNote.isNotBlank()) {
+                                    recordingState.audioTelemetry.teamVoiceNote
+                                } else {
+                                    "Unified Single-Stream Engine: Captures both Game Audio and Teammates Voice together in one stable Android AudioPlaybackCapture stream (no dual-stream conflict). If a specific game blocks internal voice chat, speakerphone or Discord media routing is supported."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
                 }
             }
 
-            // CHANNEL 2: MY MICROPHONE + REAL VOICE TEST
+            // CHANNEL 2: MY MICROPHONE (STUDIO VOICE) + REAL 5-SECOND VOICE TEST
             item {
                 MixerChannelCard(
-                    title = "2. My Microphone",
-                    subtitle = "High-clarity player voice mixed into video • Source: ${settings.micSource.label}",
+                    title = "2. My Microphone (Studio Voice)",
+                    subtitle = "48 kHz wideband studio capture • Source: ${settings.micSource.label}",
                     icon = Icons.Default.Mic,
                     accent = NeonViolet,
                     enabled = settings.micEnabled,
@@ -252,7 +303,7 @@ fun AudioStudioScreen(
                         micTestState.phase == MicTestPhase.PLAYING_SAMPLE -> "PLAYING"
                         micTestState.phase == MicTestPhase.LIVE_MONITORING -> "${micTestState.outputDb.roundToInt()} dBFS"
                         isLiveRecording -> recordingState.audioTelemetry.micStatus.label.uppercase()
-                        else -> "READY"
+                        else -> "STUDIO READY"
                     },
                     onToggleEnabled = { checked ->
                         onUpdateSettings { it.copy(micEnabled = checked) }
@@ -267,12 +318,12 @@ fun AudioStudioScreen(
                     muteTestTag = "mic_mute_button"
                 ) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    // Mic Gain Boost Slider (-6 dB to +15 dB)
+                    // Mic Gain Boost Slider (-6 dB to +12 dB, default 0 dB clean headroom)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Microphone Gain", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+                        Text("Microphone Gain (0 dB = Clean Studio)", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
                         Text(
                             "${if (settings.micGainDb >= 0) "+" else ""}${"%.1f".format(settings.micGainDb)} dB",
                             style = MaterialTheme.typography.labelMedium,
@@ -280,11 +331,11 @@ fun AudioStudioScreen(
                         )
                     }
                     Slider(
-                        value = settings.micGainDb,
+                        value = settings.micGainDb.coerceIn(-6f, 12f),
                         onValueChange = { db ->
                             onUpdateSettings { it.copy(micGainDb = db, audioPreset = AudioPreset.CUSTOM) }
                         },
-                        valueRange = -6f..15f,
+                        valueRange = -6f..12f,
                         colors = SliderDefaults.colors(thumbColor = NeonViolet, activeTrackColor = NeonViolet),
                         modifier = Modifier.testTag("mic_gain_slider")
                     )
@@ -293,12 +344,12 @@ fun AudioStudioScreen(
 
                     // Real Live Mic Monitor & 5-Second Voice Test
                     Text(
-                        "Live Voice Test (Pre-Recording)",
+                        "Studio Voice Test (Pre-Recording)",
                         style = MaterialTheme.typography.titleSmall,
                         color = TextPrimary
                     )
                     Text(
-                        "Test your actual microphone through Noise Cancellation, Wind Filter, and Voice Enhancement before gaming.",
+                        "Record a 5-second test sample and listen back to hear your exact studio voice clarity before gaming.",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -333,17 +384,17 @@ fun AudioStudioScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    "Noise Floor: ${micTestState.noiseFloorDb.roundToInt()} dB",
+                                    "Floor: ${micTestState.noiseFloorDb.roundToInt()} dB",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = TextSecondary
                                 )
                                 Text(
-                                    "NR Attenuation: ${micTestState.gainReductionDb.roundToInt()} dB",
+                                    "De-Noise: ${micTestState.gainReductionDb.roundToInt()} dB",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = CyberCyan
                                 )
                                 Text(
-                                    if (micTestState.clippingProtected) "LIMITER ACTIVE" else "CLEAN",
+                                    if (micTestState.clippingProtected) "LIMITER" else "CLEAN",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = if (micTestState.clippingProtected) ThermalAmber else SignalGreen
                                 )
@@ -422,7 +473,7 @@ fun AudioStudioScreen(
                             ) {
                                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Replay Processed Voice Test")
+                                Text("Replay Studio Voice Test")
                             }
                         }
 
@@ -434,89 +485,12 @@ fun AudioStudioScreen(
                 }
             }
 
-            // CHANNEL 3: TEAMMATE VOICE CHAT
-            item {
-                MixerChannelCard(
-                    title = "3. Teammate Voice Chat",
-                    subtitle = if (capabilities.supportsInternalAudioCapture)
-                        "Captures USAGE_VOICE_COMMUNICATION alongside game audio when app/OS permits"
-                    else
-                        "Requires Android 10+ (AudioPlaybackCapture API)",
-                    icon = Icons.Default.Groups,
-                    accent = CyberCyan,
-                    enabled = settings.teamVoiceEnabled && capabilities.supportsInternalAudioCapture,
-                    muted = settings.teamVoiceMuted,
-                    volume = settings.teamVoiceVolume,
-                    liveLevel = if (isLiveRecording) recordingState.audioTelemetry.teamLevel else 0f,
-                    statusLabel = when {
-                        !capabilities.supportsInternalAudioCapture -> "ANDROID 10+"
-                        !settings.teamVoiceEnabled -> "OFF"
-                        settings.teamVoiceMuted -> "MUTED"
-                        isLiveRecording -> recordingState.audioTelemetry.teamStatus.label.uppercase()
-                        else -> "ACTIVE READY"
-                    },
-                    onToggleEnabled = { checked ->
-                        if (capabilities.supportsInternalAudioCapture) {
-                            onUpdateSettings { it.copy(teamVoiceEnabled = checked) }
-                        }
-                    },
-                    onToggleMute = {
-                        onUpdateSettings { it.copy(teamVoiceMuted = !it.teamVoiceMuted) }
-                    },
-                    onVolumeChange = { vol ->
-                        onUpdateSettings { it.copy(teamVoiceVolume = vol, audioPreset = AudioPreset.CUSTOM) }
-                    },
-                    sliderTestTag = "team_voice_volume_slider",
-                    muteTestTag = "team_voice_mute_button"
-                ) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    SettingToggleRow(
-                        title = "Smart Voice Balance (Auto-Ducking)",
-                        subtitle = "Gently lowers game explosions (~3.5 dB) when you or teammates speak",
-                        checked = settings.smartVoiceBalance,
-                        onCheckedChange = { checked ->
-                            onUpdateSettings { it.copy(smartVoiceBalance = checked) }
-                        },
-                        accentColor = CyberCyan
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = CarbonSurfaceHigh,
-                        border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.25f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Icon(
-                                Icons.Default.Info,
-                                contentDescription = null,
-                                tint = CyberCyan,
-                                modifier = Modifier.size(16.dp).padding(top = 2.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (isLiveRecording && recordingState.audioTelemetry.teamVoiceNote.isNotBlank()) {
-                                    recordingState.audioTelemetry.teamVoiceNote
-                                } else {
-                                    "Android Transparency: Zero Recorder captures squad voice chat via Android AudioPlaybackCapture. If a specific game blocks internal voice capture (ALLOW_CAPTURE_BY_NONE or Bluetooth SCO routing), Zero Recorder detects it honestly—switching game chat to speakerphone or Discord with media routing is the supported alternative."
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-                }
-            }
-
-            // SECTION 4: BACKGROUND NOISE CANCELLATION (MIC-ONLY)
+            // SECTION 3: CLICK-FREE BACKGROUND NOISE & STATIC CANCELLATION (MIC-ONLY)
             item {
                 GamingCard(accentColor = ElectricBlue) {
                     SectionHeader(
-                        title = "Background Noise Cancellation",
-                        subtitle = "Mic-only adaptive noise gate + hardware NS (never affects game or team audio)",
+                        title = "Background Noise & Hiss Cancellation",
+                        subtitle = "Click-free smooth gate + dynamic de-hiss filter (Mic-only — never affects game audio)",
                         icon = Icons.Default.NoiseAware,
                         accent = ElectricBlue,
                         trailing = {
@@ -554,22 +528,14 @@ fun AudioStudioScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = buildString {
-                            append("Targets steady fan, AC, room hum, and low keyboard noise with smooth knee curves so your voice stays natural. ")
-                            append(
-                                if (capabilities.supportsHardwareNoiseSuppressor)
-                                    "Hardware Android NoiseSuppressor: Available."
-                                else
-                                    "Hardware Android NoiseSuppressor unavailable — using Zero on-device adaptive DSP."
-                            )
-                        },
+                        text = "Uses smooth 150 ms vocal hold & dynamic high-frequency de-hiss to eliminate fan noise, room hum, and microphone static without making your voice robotic.",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
                 }
             }
 
-            // SECTION 5: DEDICATED WIND NOISE REDUCTION (INDEPENDENT)
+            // SECTION 4: DEDICATED WIND NOISE REDUCTION (INDEPENDENT)
             item {
                 GamingCard(accentColor = CyberCyan) {
                     SectionHeader(
@@ -581,7 +547,7 @@ fun AudioStudioScreen(
                     Spacer(modifier = Modifier.height(6.dp))
                     SettingToggleRow(
                         title = "Enable Wind Reduction",
-                        subtitle = "Filters low-frequency wind rumble & breath pops (85 Hz – 240 Hz) while keeping vocals clear",
+                        subtitle = "Removes low-frequency wind gusts & breath pops (100 Hz – 210 Hz) cleanly",
                         checked = settings.windReductionEnabled,
                         onCheckedChange = { checked ->
                             onUpdateSettings { it.copy(windReductionEnabled = checked) }
@@ -590,7 +556,7 @@ fun AudioStudioScreen(
                         testTag = "wind_reduction_switch"
                     )
                     if (settings.windReductionEnabled) {
-                        val cutoffHz = (85 + settings.windReductionIntensity * 155).roundToInt()
+                        val cutoffHz = (100 + settings.windReductionIntensity * 110).roundToInt()
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -612,27 +578,22 @@ fun AudioStudioScreen(
                             modifier = Modifier.testTag("wind_intensity_slider")
                         )
                     }
-                    Text(
-                        "Software DSP high-pass filtering runs offline on all Android microphones (hardware wind microphones vary by device).",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextMuted
-                    )
                 }
             }
 
-            // SECTION 6: ON-DEVICE DSP VOICE ENHANCEMENT (HONEST OFFLINE PROCESSING)
+            // SECTION 5: STUDIO VOICE ENHANCEMENT (WARMTH + PRESENCE + VOCAL COMPRESSOR)
             item {
                 GamingCard(accentColor = NeonViolet) {
                     SectionHeader(
-                        title = "On-Device DSP Voice Enhancement",
-                        subtitle = "Offline studio clarity chain • Zero cloud upload or fake AI claims",
+                        title = "Studio Voice Enhancement",
+                        subtitle = "Offline broadcast vocal chain • Natural rich tone with zero distortion",
                         icon = Icons.Default.AutoFixHigh,
                         accent = NeonViolet
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     SettingToggleRow(
-                        title = "Voice Presence & Clarity EQ",
-                        subtitle = "Real 3.2 kHz presence boost + RMS speech leveling for crisp callouts",
+                        title = "Studio Warmth, Clarity EQ & Vocal Compressor",
+                        subtitle = "Adds subtle 180 Hz warmth, 3.0 kHz clarity boost, and smooth 2.4:1 broadcast leveling",
                         checked = settings.voiceEnhancementEnabled,
                         onCheckedChange = { checked ->
                             onUpdateSettings { it.copy(voiceEnhancementEnabled = checked, audioPreset = AudioPreset.CUSTOM) }
@@ -641,33 +602,8 @@ fun AudioStudioScreen(
                         testTag = "voice_enhancement_switch"
                     )
                     SettingToggleRow(
-                        title = "Automatic Gain Control (AGC)",
-                        subtitle = if (capabilities.supportsHardwareAgc)
-                            "Hardware + DSP automatic mic leveling to prevent quiet whispers"
-                        else
-                            "On-device DSP automatic leveler (hardware AGC unavailable on this device)",
-                        checked = settings.autoGainControl,
-                        onCheckedChange = { checked ->
-                            onUpdateSettings { it.copy(autoGainControl = checked) }
-                        },
-                        accentColor = NeonViolet
-                    )
-                    SettingToggleRow(
-                        title = "Acoustic Echo Reduction",
-                        subtitle = if (capabilities.supportsHardwareEchoCanceler)
-                            "Uses Android AcousticEchoCanceler to reduce speaker bleed into mic"
-                        else
-                            "Device lacks hardware AcousticEchoCanceler; use headset for best echo isolation",
-                        checked = settings.echoReduction,
-                        onCheckedChange = { checked ->
-                            onUpdateSettings { it.copy(echoReduction = checked) }
-                        },
-                        enabled = capabilities.supportsHardwareEchoCanceler,
-                        accentColor = NeonViolet
-                    )
-                    SettingToggleRow(
                         title = "Soft-Knee Clipping Protection",
-                        subtitle = "Master peak limiter prevents distortion during loud shouts & explosions",
+                        subtitle = "Transparent -1.0 dBFS peak limiter stops loud callouts from distorting",
                         checked = settings.clippingProtection,
                         onCheckedChange = { checked ->
                             onUpdateSettings { it.copy(clippingProtection = checked) }
@@ -719,7 +655,6 @@ private fun MixerChannelCard(
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Real-time Segmented Audio Level Meter
         SegmentedAudioMeter(
             level = liveLevel,
             activeColor = accent,

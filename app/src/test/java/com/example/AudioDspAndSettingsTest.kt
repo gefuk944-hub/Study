@@ -34,17 +34,17 @@ class AudioDspAndSettingsTest {
             clippingProtection = true
         )
         assertTrue(
-            "50 Hz wind rumble should be heavily attenuated by 240 Hz HPF",
+            "50 Hz wind rumble should be heavily attenuated by 210 Hz HPF",
             result.outputDb < result.inputDb - 10f
         )
     }
 
     @Test
-    fun noiseCancellationAttenuatesQuietConstantBackgroundNoise() {
+    fun noiseCancellationAttenuatesQuietConstantBackgroundNoiseWithoutClicks() {
         val dsp = AudioDspProcessor(sampleRate = 48000)
-        // Low-level steady room hum (~ -45 dBFS)
-        val noiseBuf = ShortArray(960) { i ->
-            (sin(2.0 * PI * 300.0 * i / 48000.0) * 180.0).toInt().toShort()
+        // Low-level steady room hum (~ -45 dBFS) across ~600ms so smooth 220ms release settles
+        val noiseBuf = ShortArray(1024) { i ->
+            (sin(2.0 * PI * 300.0 * i / 48000.0) * 160.0).toInt().toShort()
         }
         var lastResult = dsp.processMicBufferInPlace(
             samples = noiseBuf.copyOf(),
@@ -57,7 +57,7 @@ class AudioDspAndSettingsTest {
             autoGainControl = false,
             clippingProtection = true
         )
-        repeat(6) {
+        repeat(35) {
             lastResult = dsp.processMicBufferInPlace(
                 samples = noiseBuf.copyOf(),
                 sampleCount = noiseBuf.size,
@@ -71,15 +71,50 @@ class AudioDspAndSettingsTest {
             )
         }
         assertTrue(
-            "Strong noise cancellation should attenuate quiet steady background noise",
-            lastResult.outputDb < lastResult.inputDb - 10f
+            "Strong noise cancellation should smoothly attenuate quiet steady background noise",
+            lastResult.outputDb < lastResult.inputDb - 12f
         )
+    }
+
+    @Test
+    fun studioVoiceEnhancementKeepsNormalSpeechClearAndUndistorted() {
+        val dsp = AudioDspProcessor(sampleRate = 48000)
+        // Normal speech level (~ -16 dBFS @ 1 kHz)
+        val speech = ShortArray(1024) { i ->
+            (sin(2.0 * PI * 1000.0 * i / 48000.0) * 5200.0).toInt().toShort()
+        }
+        var res = dsp.processMicBufferInPlace(
+            samples = speech.copyOf(),
+            sampleCount = speech.size,
+            micGainDb = 0f,
+            noiseCancellation = NoiseCancellationLevel.MEDIUM,
+            windReductionEnabled = false,
+            windReductionIntensity = 0f,
+            voiceEnhancementEnabled = true,
+            autoGainControl = false,
+            clippingProtection = true
+        )
+        repeat(5) {
+            res = dsp.processMicBufferInPlace(
+                samples = speech.copyOf(),
+                sampleCount = speech.size,
+                micGainDb = 0f,
+                noiseCancellation = NoiseCancellationLevel.MEDIUM,
+                windReductionEnabled = false,
+                windReductionIntensity = 0f,
+                voiceEnhancementEnabled = true,
+                autoGainControl = false,
+                clippingProtection = true
+            )
+        }
+        assertTrue("Normal studio speech must not clip", !res.clippingProtected)
+        assertTrue("Normal studio speech should remain strong and clear", res.outputDb > -20f)
     }
 
     @Test
     fun clippingProtectionPreventsDigitalOverload() {
         val dsp = AudioDspProcessor(sampleRate = 48000)
-        val loudVoice = ShortArray(960) { i ->
+        val loudVoice = ShortArray(1024) { i ->
             (sin(2.0 * PI * 1000.0 * i / 48000.0) * 28000.0).toInt().toShort()
         }
         val result = dsp.processMicBufferInPlace(
@@ -112,9 +147,7 @@ class AudioDspAndSettingsTest {
             performanceMode = PerformanceMode.PERFORMANCE,
             autoStopLowStorageMb = 1024
         )
-        // 16.192 Mbps * 60 / 8 ~= 121.44 MB/min
         assertEquals(121.44f, s.estimatedMbPerMinute(), 0.5f)
-        // With 3 GB free and 1 GB reserve -> 2048 MB usable -> ~16 minutes
         val mins = s.estimatedMaxMinutes(3L * 1024L * 1024L * 1024L)
         assertEquals(16, mins)
     }

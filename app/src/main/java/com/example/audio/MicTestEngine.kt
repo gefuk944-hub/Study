@@ -11,6 +11,7 @@ import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import androidx.core.content.ContextCompat
+import com.example.data.MicAudioSource
 import com.example.data.RecorderSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +22,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.io.ByteArrayOutputStream
 
 enum class MicTestPhase {
     IDLE,
@@ -47,8 +47,8 @@ data class MicTestUiState(
 )
 
 /**
- * Real pre-recording microphone monitor and 5-second processed voice test engine.
- * Runs the exact same AudioDspProcessor and Android hardware AudioEffects used during recording.
+ * Real pre-recording studio microphone monitor and 5-second voice test engine.
+ * Uses the exact same AudioDspProcessor and wideband 48 kHz AudioRecord settings used during recording.
  */
 class MicTestEngine(private val context: Context) {
 
@@ -90,7 +90,7 @@ class MicTestEngine(private val context: Context) {
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT
-            ).coerceAtLeast(3840)
+            ).coerceAtLeast(4096)
 
             var audioRecord: AudioRecord? = null
             var ns: NoiseSuppressor? = null
@@ -103,7 +103,7 @@ class MicTestEngine(private val context: Context) {
                     sampleRate,
                     AudioFormat.CHANNEL_IN_MONO,
                     AudioFormat.ENCODING_PCM_16BIT,
-                    minBufBytes * 2
+                    minBufBytes * 3
                 )
                 if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
                     _state.value = _state.value.copy(
@@ -118,21 +118,23 @@ class MicTestEngine(private val context: Context) {
                     ns = runCatching { NoiseSuppressor.create(sessionId) }.getOrNull()
                     ns?.enabled = latestSettings.noiseCancellation.useAndroidNs
                 }
-                if (AcousticEchoCanceler.isAvailable()) {
-                    aec = runCatching { AcousticEchoCanceler.create(sessionId) }.getOrNull()
-                    aec?.enabled = latestSettings.echoReduction
-                }
-                if (AutomaticGainControl.isAvailable()) {
-                    agc = runCatching { AutomaticGainControl.create(sessionId) }.getOrNull()
-                    agc?.enabled = latestSettings.autoGainControl
+                if (latestSettings.micSource == MicAudioSource.VOICE_COMMUNICATION) {
+                    if (AcousticEchoCanceler.isAvailable()) {
+                        aec = runCatching { AcousticEchoCanceler.create(sessionId) }.getOrNull()
+                        aec?.enabled = latestSettings.echoReduction
+                    }
+                    if (AutomaticGainControl.isAvailable()) {
+                        agc = runCatching { AutomaticGainControl.create(sessionId) }.getOrNull()
+                        agc?.enabled = latestSettings.autoGainControl
+                    }
                 }
 
                 audioRecord.startRecording()
 
                 val dsp = AudioDspProcessor(sampleRate)
-                val frameSamples = 960 // 20ms @ 48kHz
+                val frameSamples = 1024
                 val buffer = ShortArray(frameSamples)
-                val targetSampleCount = sampleRate * 5 // 5 seconds
+                val targetSampleCount = sampleRate * 5
                 val capturedShorts = if (captureSampleRequested) ShortArray(targetSampleCount) else null
                 var capturedCursor = 0
 
@@ -146,25 +148,15 @@ class MicTestEngine(private val context: Context) {
                 )
 
                 var lastNsFlag = latestSettings.noiseCancellation.useAndroidNs
-                var lastAecFlag = latestSettings.echoReduction
-                var lastAgcFlag = latestSettings.autoGainControl
 
                 while (isActive) {
-                    val read = audioRecord.read(buffer, 0, frameSamples)
+                    val read = audioRecord.read(buffer, 0, frameSamples, AudioRecord.READ_BLOCKING)
                     if (read <= 0) continue
 
                     val s = latestSettings
                     if (s.noiseCancellation.useAndroidNs != lastNsFlag) {
                         lastNsFlag = s.noiseCancellation.useAndroidNs
                         runCatching { ns?.enabled = lastNsFlag }
-                    }
-                    if (s.echoReduction != lastAecFlag) {
-                        lastAecFlag = s.echoReduction
-                        runCatching { aec?.enabled = lastAecFlag }
-                    }
-                    if (s.autoGainControl != lastAgcFlag) {
-                        lastAgcFlag = s.autoGainControl
-                        runCatching { agc?.enabled = lastAgcFlag }
                     }
 
                     val meter = dsp.processMicBufferInPlace(
@@ -179,7 +171,6 @@ class MicTestEngine(private val context: Context) {
                         clippingProtection = s.clippingProtection
                     )
 
-                    // Apply user mic volume slider + mute for test preview accuracy
                     val volumeFactor = if (s.micMuted || !s.micEnabled) 0f else s.micVolume
                     if (volumeFactor != 1.0f) {
                         for (i in 0 until read) {
@@ -262,7 +253,7 @@ class MicTestEngine(private val context: Context) {
             sampleRate,
             AudioFormat.CHANNEL_OUT_MONO,
             AudioFormat.ENCODING_PCM_16BIT
-        ).coerceAtLeast(3840)
+        ).coerceAtLeast(4096)
 
         var track: AudioTrack? = null
         try {
@@ -291,7 +282,7 @@ class MicTestEngine(private val context: Context) {
                 hasRecordedSample = true
             )
 
-            val chunkSize = 960
+            val chunkSize = 1024
             var offset = 0
             while (offset < pcm.size && !Thread.currentThread().isInterrupted) {
                 val len = minOf(chunkSize, pcm.size - offset)

@@ -477,10 +477,11 @@ class ScreenRecordingEngine(
             if (trackIdx < 0) return
 
             if (!isVideo) {
-                // Guarantee monotonic audio PTS for MediaMuxer stability
-                val safePts = maxOf(info.presentationTimeUs, lastAudioPtsUs + 100L)
-                info.presentationTimeUs = safePts
-                lastAudioPtsUs = safePts
+                // Keep exact monotonic sample-clock PTS from AAC encoder; only guard strict monotonicity
+                if (info.presentationTimeUs <= lastAudioPtsUs && lastAudioPtsUs > 0L) {
+                    info.presentationTimeUs = lastAudioPtsUs + 1L
+                }
+                lastAudioPtsUs = info.presentationTimeUs
             }
 
             runCatching {

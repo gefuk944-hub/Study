@@ -196,14 +196,14 @@ fun HomeDashboardScreen(
                 }
             }
 
-            // 2. Three-Source Audio Live Matrix Card
+            // 2. Unified Studio Audio Matrix Card (Game + Teammates + Studio Mic)
             item {
                 GamingCard(
                     accentColor = if (isActive) ElectricBlue else CarbonBorder,
                     modifier = Modifier.clickable(onClick = onOpenAudioStudio)
                 ) {
                     SectionHeader(
-                        title = "3-Source Audio Matrix",
+                        title = "Studio Audio Matrix",
                         subtitle = "Preset: ${settings.audioPreset.label} • NC: ${settings.noiseCancellation.label}",
                         icon = Icons.Default.GraphicEq,
                         accent = CyberCyan,
@@ -217,17 +217,17 @@ fun HomeDashboardScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     AudioMiniChannelRow(
-                        label = "Game Audio",
-                        enabled = settings.gameAudioEnabled && !settings.gameAudioMuted,
+                        label = "Game & Teammates Audio",
+                        enabled = settings.gameAudioEnabled && !settings.gameAudioMuted && capabilities.supportsInternalAudioCapture,
                         volumePct = (settings.gameAudioVolume * 100).toInt(),
                         level = if (isActive) recordingState.audioTelemetry.gameLevel else 0f,
                         statusText = if (isActive) recordingState.audioTelemetry.gameStatus.label
-                        else if (!capabilities.supportsInternalAudioCapture) "Android 10+" else "Original HQ",
+                        else if (!capabilities.supportsInternalAudioCapture) "Android 10+" else "Game + Team HQ",
                         accent = ElectricBlue
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     AudioMiniChannelRow(
-                        label = "My Microphone",
+                        label = "My Microphone (Studio)",
                         enabled = settings.micEnabled && !settings.micMuted && permissions.hasMicrophone,
                         volumePct = (settings.micVolume * 100).toInt(),
                         level = if (isActive) recordingState.audioTelemetry.micLevel else 0f,
@@ -235,19 +235,9 @@ fun HomeDashboardScreen(
                             !permissions.hasMicrophone -> "Grant Mic"
                             settings.micMuted -> "Muted"
                             isActive -> recordingState.audioTelemetry.micStatus.label
-                            else -> if (settings.windReductionEnabled) "NC + Wind" else "DSP Ready"
+                            else -> if (settings.windReductionEnabled) "Studio + Wind" else "Studio DSP"
                         },
                         accent = NeonViolet
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    AudioMiniChannelRow(
-                        label = "Teammate Voice",
-                        enabled = settings.teamVoiceEnabled && !settings.teamVoiceMuted && capabilities.supportsInternalAudioCapture,
-                        volumePct = (settings.teamVoiceVolume * 100).toInt(),
-                        level = if (isActive) recordingState.audioTelemetry.teamLevel else 0f,
-                        statusText = if (isActive) recordingState.audioTelemetry.teamStatus.label
-                        else if (!capabilities.supportsInternalAudioCapture) "Android 10+" else "Balanced",
-                        accent = CyberCyan
                     )
 
                     if (isActive && recordingState.audioTelemetry.teamVoiceNote.isNotBlank()) {
