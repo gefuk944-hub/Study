@@ -158,7 +158,7 @@ fun AdvancedSettingsScreen(
                         value = settings.floatingOpacity,
                         onValueChange = { alpha -> onUpdateSettings { it.copy(floatingOpacity = alpha) } },
                         valueRange = 0.30f..1.0f,
-                        colors = SliderDefaults.colors(thumbColor = CyberCyan, activeTrackColor = CyberCyan),
+                        colors = SliderDefaults.colors(thumbColor = ElectricBlue, activeTrackColor = ElectricBlue),
                         modifier = Modifier.testTag("floating_opacity_slider")
                     )
 
@@ -189,12 +189,11 @@ fun AdvancedSettingsScreen(
 
             // Countdown, Auto-Stop & Duration Limit
             item {
-                GamingCard(accentColor = NeonViolet) {
+                GamingCard {
                     SectionHeader(
                         title = "Countdown & Auto-Stop Guard",
                         subtitle = "Prevents corrupted recordings and full-disk crashes",
-                        icon = Icons.Default.Timer,
-                        accent = NeonViolet
+                        icon = Icons.Default.Timer
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Recording Countdown", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
@@ -207,7 +206,7 @@ fun AdvancedSettingsScreen(
                                 label = { Text(if (sec == 0) "Off" else "${sec}s") },
                                 modifier = Modifier.testTag("countdown_${sec}s"),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = NeonViolet,
+                                    selectedContainerColor = ElectricBlue,
                                     selectedLabelColor = Color.White,
                                     containerColor = CarbonSurfaceHigh,
                                     labelColor = TextSecondary
@@ -226,8 +225,8 @@ fun AdvancedSettingsScreen(
                                 onClick = { onUpdateSettings { it.copy(autoStopLowStorageMb = mb) } },
                                 label = { Text(if (mb >= 1024) "${mb / 1024} GB" else "$mb MB") },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = CyberCyan,
-                                    selectedLabelColor = ObsidianVoid,
+                                    selectedContainerColor = ElectricBlue,
+                                    selectedLabelColor = Color.White,
                                     containerColor = CarbonSurfaceHigh,
                                     labelColor = TextSecondary
                                 )
@@ -265,8 +264,7 @@ fun AdvancedSettingsScreen(
                     SectionHeader(
                         title = "Microphone Audio Source",
                         subtitle = settings.micSource.description,
-                        icon = Icons.Default.Mic,
-                        accent = CyberCyan
+                        icon = Icons.Default.Mic
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
@@ -279,8 +277,8 @@ fun AdvancedSettingsScreen(
                                 onClick = { onUpdateSettings { it.copy(micSource = src) } },
                                 label = { Text(src.label) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = CyberCyan,
-                                    selectedLabelColor = ObsidianVoid,
+                                    selectedContainerColor = ElectricBlue,
+                                    selectedLabelColor = Color.White,
                                     containerColor = CarbonSurfaceHigh,
                                     labelColor = TextSecondary
                                 )

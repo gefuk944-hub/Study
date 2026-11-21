@@ -5,6 +5,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,9 +19,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -40,19 +44,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CarbonBorder
 import com.example.ui.theme.CarbonSurface
 import com.example.ui.theme.CarbonSurfaceHigh
-import com.example.ui.theme.CyberCyan
 import com.example.ui.theme.ElectricBlue
-import com.example.ui.theme.NeonViolet
 import com.example.ui.theme.RecordCrimson
 import com.example.ui.theme.SignalGreen
 import com.example.ui.theme.TextMuted
@@ -60,6 +62,9 @@ import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.ThermalAmber
 
+/**
+ * Clean native matte container card with subtle hairline border (no neon glow borders).
+ */
 @Composable
 fun GamingCard(
     modifier: Modifier = Modifier,
@@ -67,18 +72,44 @@ fun GamingCard(
     containerColor: Color = CarbonSurface,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    // Only tint the hairline border for true warning/error states; keep all normal cards clean & neutral.
+    val effectiveBorder = if (accentColor == RecordCrimson || accentColor == ThermalAmber) {
+        accentColor.copy(alpha = 0.55f)
+    } else {
+        CarbonBorder.copy(alpha = 0.72f)
+    }
+
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = containerColor,
-        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.45f)),
-        tonalElevation = 2.dp
+        border = BorderStroke(1.dp, effectiveBorder),
+        tonalElevation = 0.dp
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             content = content
         )
     }
+}
+
+/**
+ * Clean native Android uppercase section group label above cards/lists.
+ */
+@Composable
+fun SectionLabel(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelMedium.copy(
+            letterSpacing = 0.9.sp,
+            fontWeight = FontWeight.SemiBold
+        ),
+        color = TextMuted,
+        modifier = modifier.padding(start = 4.dp, bottom = 6.dp, top = 4.dp)
+    )
 }
 
 @Composable
@@ -92,7 +123,7 @@ fun SectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -101,29 +132,22 @@ fun SectionHeader(
             modifier = Modifier.weight(1f)
         ) {
             if (icon != null) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(accent.copy(alpha = 0.16f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = accent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(modifier = Modifier.width(10.dp))
             }
             Column {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = TextPrimary
                 )
                 if (!subtitle.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
@@ -136,27 +160,90 @@ fun SectionHeader(
     }
 }
 
+/**
+ * Native Android grouped preference row with optional leading icon, subtitle, value, and chevron.
+ */
+@Composable
+fun SettingsNavRow(
+    title: String,
+    subtitle: String? = null,
+    trailingValue: String? = null,
+    icon: ImageVector? = null,
+    iconTint: Color = TextSecondary,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                color = TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        if (!trailingValue.isNullOrBlank()) {
+            Text(
+                text = trailingValue,
+                style = MaterialTheme.typography.labelLarge,
+                color = TextSecondary,
+                modifier = Modifier.padding(end = 6.dp)
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = TextMuted,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
 @Composable
 fun StatusPill(
     text: String,
     color: Color,
     modifier: Modifier = Modifier,
-    leadingDot: Boolean = true
+    leadingDot: Boolean = false
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(50),
-        color = color.copy(alpha = 0.16f),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.4f))
+        shape = RoundedCornerShape(8.dp),
+        color = color.copy(alpha = 0.14f)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (leadingDot) {
                 Box(
                     modifier = Modifier
-                        .size(7.dp)
+                        .size(6.dp)
                         .clip(CircleShape)
                         .background(color)
                 )
@@ -164,7 +251,7 @@ fun StatusPill(
             }
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = color,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -174,14 +261,14 @@ fun StatusPill(
 }
 
 /**
- * Real-time segmented LED audio meter driven directly by actual PCM RMS levels (0f..1f).
+ * Clean real-time studio VU level meter driven directly by PCM RMS levels (0f..1f).
  */
 @Composable
 fun SegmentedAudioMeter(
     level: Float,
     modifier: Modifier = Modifier,
-    segments: Int = 24,
-    activeColor: Color = ElectricBlue,
+    segments: Int = 28,
+    activeColor: Color = SignalGreen,
     muted: Boolean = false
 ) {
     val animatedLevel by animateFloatAsState(
@@ -193,9 +280,9 @@ fun SegmentedAudioMeter(
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(10.dp)
+            .height(6.dp)
     ) {
-        val gap = 3.dp.toPx()
+        val gap = 2.dp.toPx()
         val totalGap = gap * (segments - 1)
         val segWidth = ((size.width - totalGap) / segments).coerceAtLeast(2f)
         val activeSegments = (animatedLevel * segments).toInt()
@@ -205,16 +292,15 @@ fun SegmentedAudioMeter(
             val lit = i < activeSegments
             val segColor = when {
                 !lit -> CarbonSurfaceHigh
-                fraction > 0.85f -> RecordCrimson
+                fraction > 0.86f -> RecordCrimson
                 fraction > 0.68f -> ThermalAmber
-                fraction > 0.45f -> CyberCyan
-                else -> activeColor
+                else -> SignalGreen
             }
             drawRoundRect(
                 color = segColor,
                 topLeft = Offset(i * (segWidth + gap), 0f),
                 size = Size(segWidth, size.height),
-                cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
+                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
             )
         }
     }
@@ -234,21 +320,24 @@ fun SettingToggleRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                 color = if (enabled) TextPrimary else TextMuted
             )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (enabled) TextSecondary else TextMuted
-            )
+            if (subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (enabled) TextSecondary else TextMuted
+                )
+            }
         }
         Switch(
             checked = checked,
@@ -257,7 +346,7 @@ fun SettingToggleRow(
             modifier = if (testTag != null) Modifier.testTag(testTag) else Modifier,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = accentColor,
+                checkedTrackColor = ElectricBlue,
                 uncheckedThumbColor = TextSecondary,
                 uncheckedTrackColor = CarbonSurfaceHigh,
                 uncheckedBorderColor = CarbonBorder
@@ -271,28 +360,27 @@ fun TelemetryStatTile(
     label: String,
     value: String,
     subvalue: String? = null,
-    accent: Color = ElectricBlue,
+    accent: Color = TextPrimary,
     modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        color = CarbonSurfaceHigh,
-        border = BorderStroke(1.dp, accent.copy(alpha = 0.25f))
+        shape = RoundedCornerShape(12.dp),
+        color = CarbonSurfaceHigh
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary,
+                color = TextMuted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = accent,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = if (accent == RecordCrimson || accent == ThermalAmber || accent == SignalGreen) accent else TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -301,7 +389,7 @@ fun TelemetryStatTile(
                 Text(
                     text = subvalue,
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextMuted,
+                    color = TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -312,19 +400,10 @@ fun TelemetryStatTile(
 
 @Composable
 fun GradientAccentDivider(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(
-                        ElectricBlue.copy(alpha = 0.55f),
-                        NeonViolet.copy(alpha = 0.55f),
-                        Color.Transparent
-                    )
-                )
-            )
+    HorizontalDivider(
+        modifier = modifier.fillMaxWidth(),
+        thickness = 1.dp,
+        color = CarbonBorder.copy(alpha = 0.65f)
     )
 }
 

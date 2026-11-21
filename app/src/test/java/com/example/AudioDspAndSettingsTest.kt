@@ -7,6 +7,7 @@ import com.example.data.RecorderSettings
 import com.example.data.VideoCodec
 import com.example.data.VideoFps
 import com.example.data.VideoResolution
+import com.example.data.VoicePickupRange
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -27,6 +28,7 @@ class AudioDspAndSettingsTest {
             sampleCount = windBuf.size,
             micGainDb = 0f,
             noiseCancellation = NoiseCancellationLevel.OFF,
+            pickupRange = VoicePickupRange.WIDE,
             windReductionEnabled = true,
             windReductionIntensity = 1.0f,
             voiceEnhancementEnabled = false,
@@ -34,72 +36,41 @@ class AudioDspAndSettingsTest {
             clippingProtection = true
         )
         assertTrue(
-            "50 Hz wind rumble should be heavily attenuated by 210 Hz HPF",
+            "50 Hz wind rumble should be heavily attenuated by high-pass filter",
             result.outputDb < result.inputDb - 10f
         )
     }
 
     @Test
-    fun noiseCancellationAttenuatesQuietConstantBackgroundNoiseWithoutClicks() {
+    fun spectralIsolatorAndCloseRangeGateBlockDistantBackgroundNoise() {
         val dsp = AudioDspProcessor(sampleRate = 48000)
-        // Low-level steady room hum (~ -45 dBFS) across ~600ms so smooth 220ms release settles
+        // Simulate distant room/outside ambient noise (~ -42 dBFS broadband hum)
         val noiseBuf = ShortArray(1024) { i ->
-            (sin(2.0 * PI * 300.0 * i / 48000.0) * 160.0).toInt().toShort()
+            val v = sin(2.0 * PI * 320.0 * i / 48000.0) * 140.0 +
+                sin(2.0 * PI * 1400.0 * i / 48000.0) * 90.0 +
+                sin(2.0 * PI * 5200.0 * i / 48000.0) * 110.0
+            v.toInt().toShort()
         }
         var lastResult = dsp.processMicBufferInPlace(
             samples = noiseBuf.copyOf(),
             sampleCount = noiseBuf.size,
             micGainDb = 0f,
-            noiseCancellation = NoiseCancellationLevel.STRONG,
-            windReductionEnabled = false,
-            windReductionIntensity = 0f,
-            voiceEnhancementEnabled = false,
-            autoGainControl = false,
-            clippingProtection = true
-        )
-        repeat(35) {
-            lastResult = dsp.processMicBufferInPlace(
-                samples = noiseBuf.copyOf(),
-                sampleCount = noiseBuf.size,
-                micGainDb = 0f,
-                noiseCancellation = NoiseCancellationLevel.STRONG,
-                windReductionEnabled = false,
-                windReductionIntensity = 0f,
-                voiceEnhancementEnabled = false,
-                autoGainControl = false,
-                clippingProtection = true
-            )
-        }
-        assertTrue(
-            "Strong noise cancellation should smoothly attenuate quiet steady background noise",
-            lastResult.outputDb < lastResult.inputDb - 12f
-        )
-    }
-
-    @Test
-    fun studioVoiceEnhancementKeepsNormalSpeechClearAndUndistorted() {
-        val dsp = AudioDspProcessor(sampleRate = 48000)
-        // Normal speech level (~ -16 dBFS @ 1 kHz)
-        val speech = ShortArray(1024) { i ->
-            (sin(2.0 * PI * 1000.0 * i / 48000.0) * 5200.0).toInt().toShort()
-        }
-        var res = dsp.processMicBufferInPlace(
-            samples = speech.copyOf(),
-            sampleCount = speech.size,
-            micGainDb = 0f,
-            noiseCancellation = NoiseCancellationLevel.MEDIUM,
+            noiseCancellation = NoiseCancellationLevel.HIGH,
+            pickupRange = VoicePickupRange.CLOSE,
             windReductionEnabled = false,
             windReductionIntensity = 0f,
             voiceEnhancementEnabled = true,
             autoGainControl = false,
             clippingProtection = true
         )
-        repeat(5) {
-            res = dsp.processMicBufferInPlace(
-                samples = speech.copyOf(),
-                sampleCount = speech.size,
+        // Run ~900ms so FFT noise profile learns & proximity gate settles cleanly
+        repeat(45) {
+            lastResult = dsp.processMicBufferInPlace(
+                samples = noiseBuf.copyOf(),
+                sampleCount = noiseBuf.size,
                 micGainDb = 0f,
-                noiseCancellation = NoiseCancellationLevel.MEDIUM,
+                noiseCancellation = NoiseCancellationLevel.HIGH,
+                pickupRange = VoicePickupRange.CLOSE,
                 windReductionEnabled = false,
                 windReductionIntensity = 0f,
                 voiceEnhancementEnabled = true,
@@ -107,8 +78,69 @@ class AudioDspAndSettingsTest {
                 clippingProtection = true
             )
         }
-        assertTrue("Normal studio speech must not clip", !res.clippingProtected)
-        assertTrue("Normal studio speech should remain strong and clear", res.outputDb > -20f)
+        assertTrue(
+            "Close-range spectral voice isolator should attenuate distant room noise by >20 dB (got in=${lastResult.inputDb}, out=${lastResult.outputDb})",
+            lastResult.outputDb < lastResult.inputDb - 20f
+        )
+    }
+
+    @Test
+    fun closeRangeStudioSpeechStaysClearNaturalAndUndistorted() {
+        val dsp = AudioDspProcessor(sampleRate = 48000)
+        // First prime noise floor with very quiet room floor (-60 dBFS)
+        val roomFloor = ShortArray(1024) { i ->
+            (sin(2.0 * PI * 240.0 * i / 48000.0) * 30.0).toInt().toShort()
+        }
+        repeat(8) {
+            dsp.processMicBufferInPlace(
+                samples = roomFloor.copyOf(),
+                sampleCount = roomFloor.size,
+                micGainDb = 0f,
+                noiseCancellation = NoiseCancellationLevel.HIGH,
+                pickupRange = VoicePickupRange.CLOSE,
+                windReductionEnabled = false,
+                windReductionIntensity = 0f,
+                voiceEnhancementEnabled = true,
+                autoGainControl = false,
+                clippingProtection = true
+            )
+        }
+
+        // Now speak closely at normal human vocal level (~ -14 dBFS @ 1.1 kHz)
+        val speech = ShortArray(1024) { i ->
+            (sin(2.0 * PI * 1100.0 * i / 48000.0) * 6500.0).toInt().toShort()
+        }
+        var res = dsp.processMicBufferInPlace(
+            samples = speech.copyOf(),
+            sampleCount = speech.size,
+            micGainDb = 0f,
+            noiseCancellation = NoiseCancellationLevel.HIGH,
+            pickupRange = VoicePickupRange.CLOSE,
+            windReductionEnabled = false,
+            windReductionIntensity = 0f,
+            voiceEnhancementEnabled = true,
+            autoGainControl = false,
+            clippingProtection = true
+        )
+        repeat(8) {
+            res = dsp.processMicBufferInPlace(
+                samples = speech.copyOf(),
+                sampleCount = speech.size,
+                micGainDb = 0f,
+                noiseCancellation = NoiseCancellationLevel.HIGH,
+                pickupRange = VoicePickupRange.CLOSE,
+                windReductionEnabled = false,
+                windReductionIntensity = 0f,
+                voiceEnhancementEnabled = true,
+                autoGainControl = false,
+                clippingProtection = true
+            )
+        }
+        assertTrue("Close-range studio speech must not clip", !res.clippingProtected)
+        assertTrue(
+            "Close-range studio speech should remain strong and clear (got ${res.outputDb} dB)",
+            res.outputDb > -20f
+        )
     }
 
     @Test
@@ -122,6 +154,7 @@ class AudioDspAndSettingsTest {
             sampleCount = loudVoice.size,
             micGainDb = 12f,
             noiseCancellation = NoiseCancellationLevel.OFF,
+            pickupRange = VoicePickupRange.WIDE,
             windReductionEnabled = false,
             windReductionIntensity = 0f,
             voiceEnhancementEnabled = true,

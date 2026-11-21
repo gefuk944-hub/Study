@@ -301,7 +301,7 @@ fun ZeroRecorderApp(
                 if (showPrimaryNav && !useNavRail) {
                     NavigationBar(
                         containerColor = GraphiteBase,
-                        tonalElevation = 4.dp
+                        tonalElevation = 0.dp
                     ) {
                         PrimaryDestinations.forEach { dest ->
                             val selected = currentRoute == dest.route
@@ -317,9 +317,9 @@ fun ZeroRecorderApp(
                                 label = { Text(dest.label) },
                                 modifier = Modifier.testTag(dest.testTag),
                                 colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = CyberCyan,
+                                    selectedIconColor = ElectricBlue,
                                     selectedTextColor = TextPrimary,
-                                    indicatorColor = ElectricBlue.copy(alpha = 0.22f),
+                                    indicatorColor = ElectricBlue.copy(alpha = 0.16f),
                                     unselectedIconColor = TextMuted,
                                     unselectedTextColor = TextMuted
                                 )
@@ -352,9 +352,9 @@ fun ZeroRecorderApp(
                                 label = { Text(dest.label) },
                                 modifier = Modifier.testTag(dest.testTag),
                                 colors = NavigationRailItemDefaults.colors(
-                                    selectedIconColor = CyberCyan,
+                                    selectedIconColor = ElectricBlue,
                                     selectedTextColor = TextPrimary,
-                                    indicatorColor = ElectricBlue.copy(alpha = 0.22f),
+                                    indicatorColor = ElectricBlue.copy(alpha = 0.16f),
                                     unselectedIconColor = TextMuted,
                                     unselectedTextColor = TextMuted
                                 )
@@ -375,6 +375,7 @@ fun ZeroRecorderApp(
                                 telemetry = telemetry,
                                 capabilities = capabilities,
                                 permissions = permissions,
+                                recentVideos = videos,
                                 videoCount = videos.size,
                                 screenshotCount = screenshots.size,
                                 onRequestStartRecording = { requestStartRecordingFlow() },
@@ -391,6 +392,14 @@ fun ZeroRecorderApp(
                                     triggerHaptic()
                                     viewModel.toggleMicMuteLive()
                                 },
+                                onToggleGameAudio = { enabled ->
+                                    viewModel.updateSettings {
+                                        it.copy(gameAudioEnabled = enabled, teamVoiceEnabled = enabled)
+                                    }
+                                },
+                                onToggleMicEnabled = { enabled ->
+                                    viewModel.updateSettings { it.copy(micEnabled = enabled) }
+                                },
                                 onToggleFloatingOverlay = { enable ->
                                     if (enable && !permissions.hasOverlay) {
                                         openOverlaySettings()
@@ -404,6 +413,10 @@ fun ZeroRecorderApp(
                                 onOpenLibrary = {
                                     libraryInitialTab = 0
                                     navigateTop(Routes.LIBRARY)
+                                },
+                                onOpenVideo = { item ->
+                                    selectedVideoId = item.id
+                                    navController.navigate(Routes.PLAYER)
                                 },
                                 onOpenPerformanceMonitor = { navController.navigate(Routes.PERFORMANCE) },
                                 onOpenAdvancedSettings = { navController.navigate(Routes.ADVANCED) },

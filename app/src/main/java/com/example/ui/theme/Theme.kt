@@ -5,10 +5,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-private val ColorTokenOutlineVariant = androidx.compose.ui.graphics.Color(0xFF1C2436)
-private val ColorTokenErrorLight = androidx.compose.ui.graphics.Color(0xFFFF8A9B)
+private val ColorTokenOutlineVariant = Color(0xFF222834)
+private val ColorTokenErrorLight = Color(0xFFFCA5A5)
 
 private val ZeroRecorderDarkColorScheme = darkColorScheme(
     primary = ElectricBlue,
@@ -44,10 +45,10 @@ private val ZeroRecorderDarkColorScheme = darkColorScheme(
 
 val ZeroRecorderShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(28.dp)
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(18.dp),
+    extraLarge = RoundedCornerShape(24.dp)
 )
 
 @Composable

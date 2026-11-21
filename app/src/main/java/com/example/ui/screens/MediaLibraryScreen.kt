@@ -135,12 +135,12 @@ fun MediaLibraryScreen(
             ) {
                 Column {
                     Text(
-                        if (selectedTab == 0) "Video Library" else "Screenshot Gallery",
-                        style = MaterialTheme.typography.headlineMedium,
+                        if (selectedTab == 0) "Library" else "Screenshots",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
                         color = TextPrimary
                     )
                     Text(
-                        if (selectedTab == 0) "Saved in Movies/ZeroRecorder/" else "Saved in Pictures/ZeroRecorder/",
+                        if (selectedTab == 0) "Movies/ZeroRecorder" else "Pictures/ZeroRecorder",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -151,14 +151,14 @@ fun MediaLibraryScreen(
                             onClick = onTakeScreenshot,
                             modifier = Modifier.testTag("gallery_take_screenshot_button")
                         ) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = "Take screenshot", tint = CyberCyan)
+                            Icon(Icons.Default.CameraAlt, contentDescription = "Take screenshot", tint = TextSecondary)
                         }
                     }
                     IconButton(
                         onClick = onRefresh,
                         modifier = Modifier.testTag("refresh_media_library_button")
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh gallery", tint = ElectricBlue)
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh gallery", tint = TextSecondary)
                     }
                 }
             }
@@ -175,7 +175,9 @@ fun MediaLibraryScreen(
                         activeContainerColor = ElectricBlue,
                         activeContentColor = Color.White,
                         inactiveContainerColor = CarbonSurface,
-                        inactiveContentColor = TextSecondary
+                        inactiveContentColor = TextSecondary,
+                        activeBorderColor = ElectricBlue,
+                        inactiveBorderColor = CarbonBorder
                     )
                 ) {
                     Text("Videos (${videos.size})")
@@ -186,10 +188,12 @@ fun MediaLibraryScreen(
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     modifier = Modifier.testTag("library_tab_screenshots"),
                     colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = NeonViolet,
+                        activeContainerColor = ElectricBlue,
                         activeContentColor = Color.White,
                         inactiveContainerColor = CarbonSurface,
-                        inactiveContentColor = TextSecondary
+                        inactiveContentColor = TextSecondary,
+                        activeBorderColor = ElectricBlue,
+                        inactiveBorderColor = CarbonBorder
                     )
                 ) {
                     Text("Screenshots (${screenshots.size})")

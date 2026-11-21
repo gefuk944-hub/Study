@@ -246,9 +246,9 @@ fun PerformanceMonitorScreen(
                                     .fillMaxWidth()
                                     .clickable { onSelectPerformanceMode(mode) }
                                     .testTag("perf_mode_${mode.name.lowercase()}"),
-                                shape = RoundedCornerShape(14.dp),
-                                color = if (selected) NeonViolet.copy(alpha = 0.2f) else CarbonSurfaceHigh,
-                                border = BorderStroke(1.dp, if (selected) NeonViolet else CarbonBorder)
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (selected) ElectricBlue.copy(alpha = 0.14f) else CarbonSurfaceHigh,
+                                border = BorderStroke(1.dp, if (selected) ElectricBlue else CarbonBorder)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(12.dp),
@@ -260,7 +260,7 @@ fun PerformanceMonitorScreen(
                                         Text(mode.subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                                     }
                                     if (selected) {
-                                        StatusPill(text = "ACTIVE", color = SignalGreen, leadingDot = false)
+                                        StatusPill(text = "Active", color = ElectricBlue, leadingDot = false)
                                     }
                                 }
                             }

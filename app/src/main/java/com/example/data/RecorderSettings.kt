@@ -62,32 +62,62 @@ enum class NoiseCancellationLevel(
     val useAndroidNs: Boolean
 ) {
     OFF("Off", -96f, 0f, false),
-    LOW("Low", -52f, -12f, false),
-    MEDIUM("Medium", -45f, -20f, true),
-    HIGH("High", -39f, -28f, true),
-    STRONG("Strong", -34f, -36f, true)
+    LOW("Low", -50f, -16f, false),
+    MEDIUM("Medium", -42f, -26f, false),
+    HIGH("High", -36f, -40f, false),
+    STRONG("Max", -31f, -54f, false)
+}
+
+enum class VoicePickupRange(
+    val label: String,
+    val shortLabel: String,
+    val subtitle: String,
+    val minSpeechDb: Float,
+    val outsideFloorGain: Float
+) {
+    CLOSE(
+        label = "Close (Voice Only)",
+        shortLabel = "Close",
+        subtitle = "Records only your voice within speaking range and blocks outside/room noise",
+        minSpeechDb = -33f,
+        outsideFloorGain = 0.002f
+    ),
+    NORMAL(
+        label = "Normal",
+        shortLabel = "Normal",
+        subtitle = "Standard handheld distance with strong background noise blocking",
+        minSpeechDb = -39f,
+        outsideFloorGain = 0.008f
+    ),
+    WIDE(
+        label = "Wide",
+        shortLabel = "Wide",
+        subtitle = "Picks up softer speech; relies mainly on spectral noise removal",
+        minSpeechDb = -48f,
+        outsideFloorGain = 0.05f
+    )
 }
 
 enum class MicAudioSource(val label: String, val androidSource: Int, val description: String) {
     MIC(
-        "Studio Mic",
+        "Standard Mic",
         MediaRecorder.AudioSource.MIC,
-        "Recommended: Clean full-range 48 kHz studio voice without phone-call distortion"
+        "Clean 48 kHz voice capture without phone-call compression"
     ),
     CAMCORDER(
         "Camcorder",
         MediaRecorder.AudioSource.CAMCORDER,
-        "Wideband microphone tuned for smooth video recording"
+        "Wideband microphone tuned for video recording"
     ),
     UNPROCESSED(
-        "Raw / Unprocessed",
+        "Unprocessed",
         MediaRecorder.AudioSource.UNPROCESSED,
-        "Minimal OS processing; relies purely on Zero Studio DSP"
+        "Minimal OS processing; relies purely on app noise isolation"
     ),
     VOICE_COMMUNICATION(
-        "Voice Comm",
+        "Voice Call",
         MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-        "Telephony echo-canceling mode (may lower voice warmth on some devices)"
+        "System call mode (can sound thin or heavy on some phones)"
     )
 }
 
@@ -107,17 +137,17 @@ enum class AudioPreset(
         micVolume = 1.0f,
         micGainDb = 0f,
         teamVolume = 0.90f,
-        noiseCancellation = NoiseCancellationLevel.MEDIUM,
+        noiseCancellation = NoiseCancellationLevel.HIGH,
         voiceEnhancement = true,
         smartVoiceBalance = true
     ),
     VOICE_FOCUS(
-        label = "Studio Voice",
+        label = "Voice Focus",
         gameVolume = 0.65f,
-        micVolume = 1.15f,
-        micGainDb = 2f,
+        micVolume = 1.10f,
+        micGainDb = 1.5f,
         teamVolume = 0.65f,
-        noiseCancellation = NoiseCancellationLevel.HIGH,
+        noiseCancellation = NoiseCancellationLevel.STRONG,
         voiceEnhancement = true,
         smartVoiceBalance = true
     ),
@@ -127,12 +157,12 @@ enum class AudioPreset(
         micVolume = 1.0f,
         micGainDb = 0f,
         teamVolume = 0.95f,
-        noiseCancellation = NoiseCancellationLevel.LOW,
+        noiseCancellation = NoiseCancellationLevel.MEDIUM,
         voiceEnhancement = true,
         smartVoiceBalance = false
     ),
     ORIGINAL_AUDIO(
-        label = "Original Audio",
+        label = "Original",
         gameVolume = 1.0f,
         micVolume = 1.0f,
         micGainDb = 0f,
@@ -147,7 +177,7 @@ enum class AudioPreset(
         micVolume = 1.0f,
         micGainDb = 0f,
         teamVolume = 0.90f,
-        noiseCancellation = NoiseCancellationLevel.MEDIUM,
+        noiseCancellation = NoiseCancellationLevel.HIGH,
         voiceEnhancement = true,
         smartVoiceBalance = true
     )
@@ -167,25 +197,25 @@ enum class PerformanceMode(
 ) {
     PERFORMANCE(
         "Performance",
-        "Max encoder throughput & crisp 60 FPS priority",
+        "Max encoder throughput for steady 60 FPS",
         1000L,
         1.0f
     ),
     BALANCED(
         "Balanced",
-        "Optimal clarity with controlled heat & battery use",
+        "Good quality with controlled heat and battery use",
         1500L,
         0.92f
     ),
     LOW_RAM(
-        "Low-RAM (4GB)",
-        "Reduced buffers & lightweight HUD for 4GB RAM devices",
+        "Low RAM (4 GB)",
+        "Smaller buffers and lighter polling for 4 GB devices",
         2500L,
         0.80f
     ),
     BATTERY_SAVER(
         "Battery Saver",
-        "Lower bitrate ceiling & thermal headroom for long sessions",
+        "Lower bitrate limit for longer sessions",
         3000L,
         0.65f
     )
@@ -208,11 +238,11 @@ data class RecorderSettings(
     val gameAudioEnabled: Boolean = true,
     val gameAudioVolume: Float = 0.90f, // 0.0..1.5
     val gameAudioMuted: Boolean = false,
-    val gameOriginalAudioMode: Boolean = true, // Bypass all NC on game & teammates sound
+    val gameOriginalAudioMode: Boolean = true,
 
     val micEnabled: Boolean = true,
     val micVolume: Float = 1.0f, // 0.0..1.5
-    val micGainDb: Float = 0.0f, // -6..+12 dB (0 dB clean studio default)
+    val micGainDb: Float = 0.0f, // -6..+12 dB
     val micMuted: Boolean = false,
     val micSource: MicAudioSource = MicAudioSource.MIC,
 
@@ -220,23 +250,24 @@ data class RecorderSettings(
     val teamVoiceEnabled: Boolean = true,
     val teamVoiceVolume: Float = 0.90f,
     val teamVoiceMuted: Boolean = false,
-    val smartVoiceBalance: Boolean = true, // Smoothly duck game slightly when you speak
+    val smartVoiceBalance: Boolean = true,
     val clippingProtection: Boolean = true,
 
-    // Noise Cancellation & Wind & Studio Voice Enhancement (Mic-only)
-    val noiseCancellation: NoiseCancellationLevel = NoiseCancellationLevel.MEDIUM,
+    // Spectral Noise Isolation, Proximity Voice Range, Wind Filter & Voice Clarity (Mic-only)
+    val noiseCancellation: NoiseCancellationLevel = NoiseCancellationLevel.HIGH,
+    val voicePickupRange: VoicePickupRange = VoicePickupRange.CLOSE,
     val windReductionEnabled: Boolean = false,
     val windReductionIntensity: Float = 0.50f, // 0.0..1.0
     val voiceEnhancementEnabled: Boolean = true,
-    val autoGainControl: Boolean = false, // Disabled by default to avoid telephony hiss pumping
-    val echoReduction: Boolean = false,   // Only needed in Voice Comm mode
+    val autoGainControl: Boolean = false,
+    val echoReduction: Boolean = false,
 
     // Custom saved audio preset values
     val customGameVolume: Float = 0.90f,
     val customMicVolume: Float = 1.0f,
     val customMicGainDb: Float = 0.0f,
     val customTeamVolume: Float = 0.90f,
-    val customNoiseCancellation: NoiseCancellationLevel = NoiseCancellationLevel.MEDIUM,
+    val customNoiseCancellation: NoiseCancellationLevel = NoiseCancellationLevel.HIGH,
     val customVoiceEnhancement: Boolean = true,
 
     // Floating Overlay Control

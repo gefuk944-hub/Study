@@ -2,7 +2,6 @@ package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,62 +21,57 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.HeadsetMic
-import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.R
+import com.example.data.RecordedVideoItem
 import com.example.data.RecorderSettings
 import com.example.recording.RecordingPhase
 import com.example.recording.RecordingSessionState
 import com.example.system.DeviceCapabilities
 import com.example.system.SystemTelemetry
-import com.example.ui.components.GamingCard
-import com.example.ui.components.SectionHeader
+import com.example.ui.components.SectionLabel
 import com.example.ui.components.SegmentedAudioMeter
 import com.example.ui.components.StatusPill
-import com.example.ui.components.TelemetryStatTile
 import com.example.ui.components.formatBytesHuman
 import com.example.ui.theme.CarbonBorder
 import com.example.ui.theme.CarbonSurface
 import com.example.ui.theme.CarbonSurfaceHigh
-import com.example.ui.theme.CyberCyan
 import com.example.ui.theme.ElectricBlue
-import com.example.ui.theme.NeonViolet
 import com.example.ui.theme.ObsidianVoid
 import com.example.ui.theme.RecordCrimson
 import com.example.ui.theme.SignalGreen
@@ -94,6 +88,7 @@ fun HomeDashboardScreen(
     telemetry: SystemTelemetry,
     capabilities: DeviceCapabilities,
     permissions: PermissionSnapshot,
+    recentVideos: List<RecordedVideoItem>,
     videoCount: Int,
     screenshotCount: Int,
     onRequestStartRecording: () -> Unit,
@@ -101,11 +96,14 @@ fun HomeDashboardScreen(
     onStopRecording: () -> Unit,
     onRequestScreenshot: () -> Unit,
     onToggleMicMute: () -> Unit,
+    onToggleGameAudio: (Boolean) -> Unit,
+    onToggleMicEnabled: (Boolean) -> Unit,
     onToggleFloatingOverlay: (Boolean) -> Unit,
     onStepDownThermal: () -> Unit,
     onOpenAudioStudio: () -> Unit,
     onOpenRecordingSettings: () -> Unit,
     onOpenLibrary: () -> Unit,
+    onOpenVideo: (RecordedVideoItem) -> Unit,
     onOpenPerformanceMonitor: () -> Unit,
     onOpenAdvancedSettings: () -> Unit,
     onOpenPermissions: () -> Unit
@@ -124,57 +122,97 @@ fun HomeDashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = 680.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Gaming Hero Cockpit Card
+            // 1. Clean Native Top App Bar (no neon clutter)
             item {
-                HeroCockpitCard(
-                    settings = settings,
-                    recordingState = recordingState,
-                    isRecording = isRecording,
-                    isPaused = isPaused,
-                    isActive = isActive,
-                    onRequestStartRecording = onRequestStartRecording,
-                    onTogglePauseResume = onTogglePauseResume,
-                    onStopRecording = onStopRecording,
-                    onRequestScreenshot = onRequestScreenshot,
-                    onToggleMicMute = onToggleMicMute
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Zero Recorder",
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "${settings.resolution.shortLabel} • ${settings.fps.value} FPS • ${settings.codec.shortLabel}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        IconButton(
+                            onClick = onOpenPerformanceMonitor,
+                            modifier = Modifier.testTag("nav_tile_performance")
+                        ) {
+                            Icon(
+                                Icons.Default.Speed,
+                                contentDescription = "Performance Monitor",
+                                tint = TextSecondary
+                            )
+                        }
+                        IconButton(
+                            onClick = onOpenAdvancedSettings,
+                            modifier = Modifier.testTag("nav_tile_advanced")
+                        ) {
+                            Icon(
+                                Icons.Default.Tune,
+                                contentDescription = "Advanced Settings",
+                                tint = TextSecondary
+                            )
+                        }
+                        IconButton(
+                            onClick = onOpenPermissions,
+                            modifier = Modifier.testTag("nav_tile_permissions")
+                        ) {
+                            Icon(
+                                Icons.Default.Security,
+                                contentDescription = "Permissions and Privacy",
+                                tint = TextSecondary
+                            )
+                        }
+                    }
+                }
             }
 
-            // Thermal Warning Banner (if device is heating up)
+            // Thermal Warning Banner (only shown if phone is genuinely hot)
             item {
                 AnimatedVisibility(
                     visible = telemetry.thermalHealth.isWarning || recordingState.thermalWarningMessage != null
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = ThermalAmber.copy(alpha = 0.14f),
-                        border = BorderStroke(1.dp, ThermalAmber.copy(alpha = 0.55f))
+                        shape = RoundedCornerShape(14.dp),
+                        color = ThermalAmber.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, ThermalAmber.copy(alpha = 0.45f))
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp),
+                                .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 Icons.Default.Warning,
                                 contentDescription = "Thermal warning",
                                 tint = ThermalAmber,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(20.dp)
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "Thermal Protection Alert",
+                                    "Device warm (${"%.0f".format(telemetry.batteryTempCelsius)}°C)",
                                     style = MaterialTheme.typography.titleSmall,
                                     color = ThermalAmber
                                 )
                                 Text(
-                                    recordingState.thermalWarningMessage
-                                        ?: "Device temp ${"%.1f".format(telemetry.batteryTempCelsius)}°C (${telemetry.thermalStatusLabel}). Reduce load to prevent frame drops.",
+                                    recordingState.thermalWarningMessage ?: "Lower bitrate & FPS to keep gameplay smooth.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextPrimary
                                 )
@@ -189,532 +227,595 @@ fun HomeDashboardScreen(
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                 modifier = Modifier.testTag("thermal_step_down_button")
                             ) {
-                                Text("Cool Down", style = MaterialTheme.typography.labelLarge)
+                                Text("Lower", style = MaterialTheme.typography.labelLarge)
                             }
                         }
                     }
                 }
             }
 
-            // 2. Unified Studio Audio Matrix Card (Game + Teammates + Studio Mic)
+            // 2. Centered Pro Studio Recorder Stage (Clean matte surface, no wallpaper!)
             item {
-                GamingCard(
-                    accentColor = if (isActive) ElectricBlue else CarbonBorder,
-                    modifier = Modifier.clickable(onClick = onOpenAudioStudio)
-                ) {
-                    SectionHeader(
-                        title = "Studio Audio Matrix",
-                        subtitle = "Preset: ${settings.audioPreset.label} • NC: ${settings.noiseCancellation.label}",
-                        icon = Icons.Default.GraphicEq,
-                        accent = CyberCyan,
-                        trailing = {
-                            StatusPill(
-                                text = if (isActive) "MIXING LIVE" else "STUDIO",
-                                color = if (isActive) SignalGreen else ElectricBlue
-                            )
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    AudioMiniChannelRow(
-                        label = "Game & Teammates Audio",
-                        enabled = settings.gameAudioEnabled && !settings.gameAudioMuted && capabilities.supportsInternalAudioCapture,
-                        volumePct = (settings.gameAudioVolume * 100).toInt(),
-                        level = if (isActive) recordingState.audioTelemetry.gameLevel else 0f,
-                        statusText = if (isActive) recordingState.audioTelemetry.gameStatus.label
-                        else if (!capabilities.supportsInternalAudioCapture) "Android 10+" else "Game + Team HQ",
-                        accent = ElectricBlue
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    AudioMiniChannelRow(
-                        label = "My Microphone (Studio)",
-                        enabled = settings.micEnabled && !settings.micMuted && permissions.hasMicrophone,
-                        volumePct = (settings.micVolume * 100).toInt(),
-                        level = if (isActive) recordingState.audioTelemetry.micLevel else 0f,
-                        statusText = when {
-                            !permissions.hasMicrophone -> "Grant Mic"
-                            settings.micMuted -> "Muted"
-                            isActive -> recordingState.audioTelemetry.micStatus.label
-                            else -> if (settings.windReductionEnabled) "Studio + Wind" else "Studio DSP"
-                        },
-                        accent = NeonViolet
-                    )
-
-                    if (isActive && recordingState.audioTelemetry.teamVoiceNote.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = recordingState.audioTelemetry.teamVoiceNote,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                    }
-                }
+                RecorderStageCard(
+                    settings = settings,
+                    recordingState = recordingState,
+                    isRecording = isRecording,
+                    isPaused = isPaused,
+                    isActive = isActive,
+                    hasOverlayPerm = permissions.hasOverlay,
+                    onRequestStartRecording = onRequestStartRecording,
+                    onTogglePauseResume = onTogglePauseResume,
+                    onStopRecording = onStopRecording,
+                    onRequestScreenshot = onRequestScreenshot,
+                    onToggleMicMute = onToggleMicMute,
+                    onToggleFloatingOverlay = onToggleFloatingOverlay
+                )
             }
 
-            // 3. One-Hand Quick Actions: Floating Panel + Quality Profile
+            // 3. Quick Setup Controls (Grouped Native Android List)
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Column {
+                    SectionLabel("Quick Setup")
                     Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { onToggleFloatingOverlay(!recordingState.floatingOverlayActive) }
-                            .testTag("toggle_floating_panel_card"),
-                        shape = RoundedCornerShape(18.dp),
-                        color = if (recordingState.floatingOverlayActive) ElectricBlue.copy(alpha = 0.18f) else CarbonSurface,
-                        border = BorderStroke(
-                            1.dp,
-                            if (recordingState.floatingOverlayActive) ElectricBlue else CarbonBorder
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.PictureInPictureAlt,
-                                    contentDescription = "Floating gameplay controls",
-                                    tint = if (recordingState.floatingOverlayActive) CyberCyan else ElectricBlue
-                                )
-                                StatusPill(
-                                    text = if (recordingState.floatingOverlayActive) "ON" else "OFF",
-                                    color = if (recordingState.floatingOverlayActive) SignalGreen else TextMuted,
-                                    leadingDot = false
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                "Floating HUD",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary
-                            )
-                            Text(
-                                if (permissions.hasOverlay) "Control over games" else "Tap to grant overlay",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable(onClick = onOpenRecordingSettings)
-                            .testTag("video_profile_quick_card"),
-                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
                         color = CarbonSurface,
-                        border = BorderStroke(1.dp, CarbonBorder)
+                        border = BorderStroke(1.dp, CarbonBorder.copy(alpha = 0.72f))
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                        Column {
+                            QuickToggleRow(
+                                icon = Icons.Default.SportsEsports,
+                                title = "Game & Teammates Audio",
+                                subtitle = if (!capabilities.supportsInternalAudioCapture) {
+                                    "Requires Android 10 or newer"
+                                } else if (settings.gameAudioEnabled) {
+                                    "Internal stereo • ${(settings.gameAudioVolume * 100).toInt()}%"
+                                } else {
+                                    "Off"
+                                },
+                                checked = settings.gameAudioEnabled && capabilities.supportsInternalAudioCapture,
+                                enabled = capabilities.supportsInternalAudioCapture,
+                                onCheckedChange = onToggleGameAudio,
+                                onRowClick = onOpenAudioStudio
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = CarbonBorder.copy(alpha = 0.55f)
+                            )
+                            QuickToggleRow(
+                                icon = Icons.Default.Mic,
+                                title = "Microphone",
+                                subtitle = when {
+                                    !permissions.hasMicrophone -> "Tap to configure mic permission"
+                                    !settings.micEnabled -> "Off"
+                                    settings.micMuted -> "Muted"
+                                    else -> "${settings.voicePickupRange.shortLabel} range • NC ${settings.noiseCancellation.label}"
+                                },
+                                checked = settings.micEnabled,
+                                enabled = true,
+                                onCheckedChange = onToggleMicEnabled,
+                                onRowClick = onOpenAudioStudio
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = CarbonBorder.copy(alpha = 0.55f)
+                            )
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = onOpenRecordingSettings)
+                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                                    .testTag("video_profile_quick_card"),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    Icons.Default.SportsEsports,
-                                    contentDescription = "Video profile",
-                                    tint = NeonViolet
+                                    Icons.Default.Videocam,
+                                    contentDescription = null,
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                                StatusPill(
-                                    text = settings.codec.shortLabel,
-                                    color = NeonViolet,
-                                    leadingDot = false
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "Video Quality",
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                        color = TextPrimary
+                                    )
+                                    Text(
+                                        "${settings.resolution.displayName} • ${settings.fps.label} • ~${"%.0f".format(settings.estimatedMbPerMinute())} MB/min",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary
+                                    )
+                                }
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = TextMuted,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                "${settings.resolution.shortLabel} • ${settings.fps.value} FPS",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary
-                            )
-                            Text(
-                                "${"%.1f".format(settings.effectiveVideoBitrateMbps())} Mbps • ~${"%.0f".format(settings.estimatedMbPerMinute())} MB/m",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
                         }
                     }
                 }
             }
 
-            // 4. Device Telemetry & Storage Glance
+            // 4. Compact Device Status Strip (Storage • RAM • Temp)
             item {
-                GamingCard {
-                    SectionHeader(
-                        title = "System & Storage",
-                        subtitle = "${settings.performanceMode.label} Mode • Offline Local Storage",
-                        icon = Icons.Default.Memory,
-                        accent = ElectricBlue,
-                        trailing = {
-                            Text(
-                                text = "Monitor →",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = ElectricBlue,
+                Column {
+                    SectionLabel("Device Status")
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onOpenPerformanceMonitor)
+                            .testTag("open_performance_monitor_link"),
+                        shape = RoundedCornerShape(16.dp),
+                        color = CarbonSurface,
+                        border = BorderStroke(1.dp, CarbonBorder.copy(alpha = 0.72f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CompactMetricColumn(
+                                label = "Free Storage",
+                                value = "${"%.1f".format(telemetry.availableStorageGb)} GB",
+                                caption = "~${settings.estimatedMaxMinutes(telemetry.availableStorageBytes)} min",
+                                valueColor = if (telemetry.isLowStorage) RecordCrimson else TextPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Box(
                                 modifier = Modifier
-                                    .clickable(onClick = onOpenPerformanceMonitor)
-                                    .padding(4.dp)
-                                    .testTag("open_performance_monitor_link")
+                                    .width(1.dp)
+                                    .height(34.dp)
+                                    .background(CarbonBorder.copy(alpha = 0.6f))
+                            )
+                            CompactMetricColumn(
+                                label = "Memory",
+                                value = "${(telemetry.ramUsageFraction * 100).toInt()}%",
+                                caption = "${telemetry.availableRamMb} MB free",
+                                valueColor = TextPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(34.dp)
+                                    .background(CarbonBorder.copy(alpha = 0.6f))
+                            )
+                            CompactMetricColumn(
+                                label = "Battery Temp",
+                                value = "${"%.0f".format(telemetry.batteryTempCelsius)}°C",
+                                caption = telemetry.thermalHealth.label,
+                                valueColor = if (telemetry.thermalHealth.isWarning) ThermalAmber else SignalGreen,
+                                modifier = Modifier.weight(1f)
                             )
                         }
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        TelemetryStatTile(
-                            label = "FREE SPACE",
-                            value = "${"%.1f".format(telemetry.availableStorageGb)} GB",
-                            subvalue = "~${settings.estimatedMaxMinutes(telemetry.availableStorageBytes)}m left",
-                            accent = if (telemetry.isLowStorage) RecordCrimson else CyberCyan,
-                            modifier = Modifier.weight(1f)
-                        )
-                        TelemetryStatTile(
-                            label = "RAM USED",
-                            value = "${(telemetry.ramUsageFraction * 100).toInt()}%",
-                            subvalue = "${telemetry.availableRamMb} MB free",
-                            accent = ElectricBlue,
-                            modifier = Modifier.weight(1f)
-                        )
-                        TelemetryStatTile(
-                            label = "THERMAL",
-                            value = "${"%.0f".format(telemetry.batteryTempCelsius)}°C",
-                            subvalue = telemetry.thermalHealth.label,
-                            accent = if (telemetry.thermalHealth.isWarning) ThermalAmber else SignalGreen,
-                            modifier = Modifier.weight(1f)
-                        )
                     }
                 }
             }
 
-            // 5. Quick Access Command Grid (Library, Performance, Advanced, Privacy)
+            // 5. Recent Clips (Immediate access right from Home)
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 4.dp, bottom = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        DashboardNavTile(
-                            title = "Gallery & Clips",
-                            subtitle = "$videoCount videos • $screenshotCount shots",
-                            icon = Icons.Default.VideoLibrary,
-                            accent = ElectricBlue,
+                        Text(
+                            text = "RECENT RECORDINGS",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                letterSpacing = 0.9.sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = TextMuted
+                        )
+                        TextButton(
                             onClick = onOpenLibrary,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("nav_tile_library")
-                        )
-                        DashboardNavTile(
-                            title = "Performance",
-                            subtitle = "4GB RAM & Thermal",
-                            icon = Icons.Default.Memory,
-                            accent = CyberCyan,
-                            onClick = onOpenPerformanceMonitor,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("nav_tile_performance")
-                        )
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier.testTag("nav_tile_library")
+                        ) {
+                            Text(
+                                text = "Library ($videoCount)",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = ElectricBlue
+                            )
+                        }
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        DashboardNavTile(
-                            title = "Advanced",
-                            subtitle = "Timer, HUD & Auto-stop",
-                            icon = Icons.Default.Tune,
-                            accent = NeonViolet,
-                            onClick = onOpenAdvancedSettings,
+
+                    if (recentVideos.isEmpty()) {
+                        Surface(
                             modifier = Modifier
-                                .weight(1f)
-                                .testTag("nav_tile_advanced")
-                        )
-                        DashboardNavTile(
-                            title = "Privacy & Perms",
-                            subtitle = "100% Local • No Login",
-                            icon = Icons.Default.Security,
-                            accent = SignalGreen,
-                            onClick = onOpenPermissions,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("nav_tile_permissions")
-                        )
+                                .fillMaxWidth()
+                                .clickable(onClick = onOpenLibrary),
+                            shape = RoundedCornerShape(16.dp),
+                            color = CarbonSurface,
+                            border = BorderStroke(1.dp, CarbonBorder.copy(alpha = 0.72f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(CarbonSurfaceHigh),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Videocam,
+                                        contentDescription = null,
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "No recordings yet",
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                        color = TextPrimary
+                                    )
+                                    Text(
+                                        if (screenshotCount > 0) "$screenshotCount screenshots saved in Gallery"
+                                        else "Clips save directly to Movies/ZeroRecorder",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = CarbonSurface,
+                            border = BorderStroke(1.dp, CarbonBorder.copy(alpha = 0.72f))
+                        ) {
+                            Column {
+                                recentVideos.take(2).forEachIndexed { idx, clip ->
+                                    if (idx > 0) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                            color = CarbonBorder.copy(alpha = 0.55f)
+                                        )
+                                    }
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onOpenVideo(clip) }
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(CarbonSurfaceHigh),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.PlayArrow,
+                                                contentDescription = "Play ${clip.displayName}",
+                                                tint = TextPrimary,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                clip.displayName,
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                                color = TextPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                "${clip.formattedDuration} • ${clip.resolutionLabel} • ${clip.formattedSize}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = TextSecondary
+                                            )
+                                        }
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                            contentDescription = null,
+                                            tint = TextMuted,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+            item { Spacer(modifier = Modifier.height(12.dp)) }
         }
     }
 }
 
 @Composable
-private fun HeroCockpitCard(
+private fun RecorderStageCard(
     settings: RecorderSettings,
     recordingState: RecordingSessionState,
     isRecording: Boolean,
     isPaused: Boolean,
     isActive: Boolean,
+    hasOverlayPerm: Boolean,
     onRequestStartRecording: () -> Unit,
     onTogglePauseResume: () -> Unit,
     onStopRecording: () -> Unit,
     onRequestScreenshot: () -> Unit,
-    onToggleMicMute: () -> Unit
+    onToggleMicMute: () -> Unit,
+    onToggleFloatingOverlay: (Boolean) -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         color = CarbonSurface,
         border = BorderStroke(
-            width = 1.2.dp,
-            brush = Brush.linearGradient(
-                if (isRecording) listOf(RecordCrimson, NeonViolet)
-                else listOf(ElectricBlue, NeonViolet)
-            )
-        ),
-        tonalElevation = 4.dp
+            width = 1.dp,
+            color = if (isRecording) RecordCrimson.copy(alpha = 0.55f) else CarbonBorder.copy(alpha = 0.72f)
+        )
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Image(
-                painter = painterResource(id = R.drawable.img_gaming_hero_bg_1795182511168),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                alpha = 0.42f,
-                modifier = Modifier.matchParentSize()
-            )
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                ObsidianVoid.copy(alpha = 0.50f),
-                                CarbonSurface.copy(alpha = 0.88f)
-                            )
-                        )
-                    )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Status Pill
+            StatusPill(
+                text = when (recordingState.phase) {
+                    RecordingPhase.RECORDING -> "RECORDING"
+                    RecordingPhase.PAUSED -> "PAUSED"
+                    RecordingPhase.COUNTDOWN -> "STARTING IN ${recordingState.countdownRemaining}"
+                    RecordingPhase.FINALIZING -> "SAVING VIDEO"
+                    RecordingPhase.IDLE -> "READY"
+                },
+                color = when (recordingState.phase) {
+                    RecordingPhase.RECORDING -> RecordCrimson
+                    RecordingPhase.PAUSED -> ThermalAmber
+                    RecordingPhase.COUNTDOWN -> ElectricBlue
+                    RecordingPhase.FINALIZING -> ElectricBlue
+                    RecordingPhase.IDLE -> SignalGreen
+                },
+                leadingDot = true
             )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp)
-            ) {
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Crisp Tabular Timer Display
+            Text(
+                text = when {
+                    recordingState.phase == RecordingPhase.COUNTDOWN -> "00:0${recordingState.countdownRemaining}"
+                    isActive -> recordingState.formattedTimer
+                    else -> "00:00"
+                },
+                style = MaterialTheme.typography.displayMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.5.sp
+                ),
+                color = when {
+                    isRecording -> TextPrimary
+                    isPaused -> ThermalAmber
+                    else -> TextPrimary.copy(alpha = 0.88f)
+                }
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = if (isActive) {
+                    "${formatBytesHuman(recordingState.estimatedCurrentBytes)} • ${recordingState.captureModeLabel}"
+                } else {
+                    "Audio: ${if (settings.gameAudioEnabled) "Game + Team" else "No Game"} • ${if (settings.micEnabled) "Mic (${settings.voicePickupRange.shortLabel})" else "Mic Off"}"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+
+            // Live Audio Level Meters while recording
+            if (isActive) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CarbonSurfaceHigh)
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    LiveMeterRow(
+                        label = "Game & Team",
+                        status = recordingState.audioTelemetry.gameStatus.label,
+                        level = recordingState.audioTelemetry.gameLevel,
+                        muted = !settings.gameAudioEnabled || settings.gameAudioMuted
+                    )
+                    LiveMeterRow(
+                        label = "Microphone",
+                        status = if (recordingState.micMuted) "Muted" else recordingState.audioTelemetry.micStatus.label,
+                        level = recordingState.audioTelemetry.micLevel,
+                        muted = !settings.micEnabled || recordingState.micMuted
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            // One-Hand Control Dock
+            if (!isActive) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "ZERO RECORDER",
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                letterSpacing = 1.8.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = if (isActive) {
-                                "${recordingState.resolutionLabel} • ${recordingState.activeFps} FPS • ${"%.1f".format(recordingState.activeBitrateMbps)} Mbps"
-                            } else {
-                                "Hardware Engine Ready • Offline Local Capture"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
+                    // Left: Screenshot
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Surface(
+                            onClick = onRequestScreenshot,
+                            shape = CircleShape,
+                            color = CarbonSurfaceHigh,
+                            modifier = Modifier
+                                .size(50.dp)
+                                .testTag("take_screenshot_button")
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.CameraAlt,
+                                    contentDescription = "Take screenshot",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("Shot", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                     }
 
-                    StatusPill(
-                        text = when (recordingState.phase) {
-                            RecordingPhase.RECORDING -> "LIVE REC"
-                            RecordingPhase.PAUSED -> "PAUSED"
-                            RecordingPhase.COUNTDOWN -> "IN ${recordingState.countdownRemaining}S"
-                            RecordingPhase.FINALIZING -> "SAVING"
-                            RecordingPhase.IDLE -> "STANDBY"
-                        },
-                        color = when (recordingState.phase) {
-                            RecordingPhase.RECORDING -> RecordCrimson
-                            RecordingPhase.PAUSED -> ThermalAmber
-                            RecordingPhase.COUNTDOWN -> CyberCyan
-                            RecordingPhase.FINALIZING -> NeonViolet
-                            RecordingPhase.IDLE -> SignalGreen
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Live Timer & Size Strip while recording
-                if (isActive || recordingState.phase == RecordingPhase.COUNTDOWN) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(ObsidianVoid.copy(alpha = 0.72f))
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (recordingState.phase == RecordingPhase.COUNTDOWN) {
-                                "STARTING IN ${recordingState.countdownRemaining}..."
-                            } else {
-                                recordingState.formattedTimer
-                            },
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = if (isPaused) ThermalAmber else RecordCrimson
-                        )
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = formatBytesHuman(recordingState.estimatedCurrentBytes),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = CyberCyan
-                            )
-                            Text(
-                                text = recordingState.captureModeLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(14.dp))
-                }
-
-                // Primary One-Hand Action Bar
-                if (!isActive) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
+                    // Center: Iconic Hardware-Style Circular Record Trigger
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Surface(
                             onClick = onRequestStartRecording,
                             enabled = recordingState.phase == RecordingPhase.IDLE,
+                            shape = CircleShape,
+                            color = RecordCrimson.copy(alpha = 0.16f),
+                            border = BorderStroke(2.5.dp, RecordCrimson),
                             modifier = Modifier
-                                .weight(1f)
-                                .height(54.dp)
-                                .testTag("start_recording_button"),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ElectricBlue,
-                                contentColor = Color.White
-                            )
+                                .size(76.dp)
+                                .testTag("start_recording_button")
                         ) {
-                            Icon(
-                                Icons.Default.FiberManualRecord,
-                                contentDescription = null,
-                                tint = RecordCrimson,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (recordingState.phase == RecordingPhase.FINALIZING) "Saving..." else "Start Recording",
-                                style = MaterialTheme.typography.titleMedium
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape)
+                                        .background(RecordCrimson)
+                                )
+                            }
                         }
-
-                        FilledTonalButton(
-                            onClick = onRequestScreenshot,
-                            modifier = Modifier
-                                .height(54.dp)
-                                .testTag("take_screenshot_button"),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = NeonViolet.copy(alpha = 0.25f),
-                                contentColor = TextPrimary
-                            ),
-                            contentPadding = PaddingValues(horizontal = 16.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.CameraAlt,
-                                contentDescription = "Take screenshot",
-                                tint = CyberCyan
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (recordingState.phase == RecordingPhase.FINALIZING) "Saving" else "Record",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = TextPrimary
+                        )
                     }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+                    // Right: Floating Overlay Toggle
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        val overlayOn = recordingState.floatingOverlayActive
+                        Surface(
+                            onClick = { onToggleFloatingOverlay(!overlayOn) },
+                            shape = CircleShape,
+                            color = if (overlayOn) ElectricBlue.copy(alpha = 0.22f) else CarbonSurfaceHigh,
+                            border = if (overlayOn) BorderStroke(1.dp, ElectricBlue) else null,
+                            modifier = Modifier
+                                .size(50.dp)
+                                .testTag("toggle_floating_panel_card")
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.PictureInPictureAlt,
+                                    contentDescription = if (hasOverlayPerm) "Toggle floating controls" else "Grant floating overlay permission",
+                                    tint = if (overlayOn) ElectricBlue else TextPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (overlayOn) "HUD On" else "HUD",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (overlayOn) ElectricBlue else TextSecondary
+                        )
+                    }
+                }
+            } else {
+                // Active Recording Dock: Pause/Resume — Stop — Mute Mic — Shot
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = onStopRecording,
+                        modifier = Modifier
+                            .weight(1.25f)
+                            .height(50.dp)
+                            .testTag("stop_recording_button"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = RecordCrimson,
+                            contentColor = Color.White
+                        )
                     ) {
-                        Button(
-                            onClick = onStopRecording,
-                            modifier = Modifier
-                                .weight(1.2f)
-                                .height(52.dp)
-                                .testTag("stop_recording_button"),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = RecordCrimson,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Icon(Icons.Default.Stop, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Stop", style = MaterialTheme.typography.titleMedium)
-                        }
+                        Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Stop", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold))
+                    }
 
-                        FilledTonalButton(
-                            onClick = onTogglePauseResume,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(52.dp)
-                                .testTag("pause_resume_button"),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = CarbonSurfaceHigh,
-                                contentColor = TextPrimary
-                            )
-                        ) {
-                            Icon(
-                                if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                                contentDescription = if (isPaused) "Resume" else "Pause"
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isPaused) "Resume" else "Pause")
-                        }
+                    FilledTonalButton(
+                        onClick = onTogglePauseResume,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp)
+                            .testTag("pause_resume_button"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = CarbonSurfaceHigh,
+                            contentColor = TextPrimary
+                        )
+                    ) {
+                        Icon(
+                            if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                            contentDescription = if (isPaused) "Resume" else "Pause",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(if (isPaused) "Resume" else "Pause")
+                    }
 
-                        OutlinedButton(
-                            onClick = onToggleMicMute,
-                            modifier = Modifier
-                                .height(52.dp)
-                                .testTag("live_mic_mute_button"),
-                            shape = RoundedCornerShape(14.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp),
-                            border = BorderStroke(
-                                1.dp,
-                                if (recordingState.micMuted) RecordCrimson else CarbonBorder
-                            )
-                        ) {
+                    Surface(
+                        onClick = onToggleMicMute,
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (recordingState.micMuted) RecordCrimson.copy(alpha = 0.18f) else CarbonSurfaceHigh,
+                        border = if (recordingState.micMuted) BorderStroke(1.dp, RecordCrimson) else null,
+                        modifier = Modifier
+                            .size(50.dp)
+                            .testTag("live_mic_mute_button")
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 if (recordingState.micMuted) Icons.Default.MicOff else Icons.Default.Mic,
                                 contentDescription = if (recordingState.micMuted) "Unmute microphone" else "Mute microphone",
-                                tint = if (recordingState.micMuted) RecordCrimson else CyberCyan
+                                tint = if (recordingState.micMuted) RecordCrimson else TextPrimary,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
+                    }
 
-                        OutlinedButton(
-                            onClick = onRequestScreenshot,
-                            modifier = Modifier
-                                .height(52.dp)
-                                .testTag("live_screenshot_button"),
-                            shape = RoundedCornerShape(14.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp),
-                            border = BorderStroke(1.dp, CarbonBorder)
-                        ) {
+                    Surface(
+                        onClick = onRequestScreenshot,
+                        shape = RoundedCornerShape(14.dp),
+                        color = CarbonSurfaceHigh,
+                        modifier = Modifier
+                            .size(50.dp)
+                            .testTag("live_screenshot_button")
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Default.CameraAlt,
                                 contentDescription = "Capture screenshot",
-                                tint = NeonViolet
+                                tint = TextPrimary,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -725,94 +826,103 @@ private fun HeroCockpitCard(
 }
 
 @Composable
-private fun AudioMiniChannelRow(
+private fun LiveMeterRow(
     label: String,
-    enabled: Boolean,
-    volumePct: Int,
+    status: String,
     level: Float,
-    statusText: String,
-    accent: Color
+    muted: Boolean
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(if (enabled) accent else TextMuted)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (enabled) TextPrimary else TextMuted
-                )
-            }
+            Text(label, style = MaterialTheme.typography.labelMedium, color = TextPrimary)
+            Text(status, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+        }
+        Spacer(modifier = Modifier.height(5.dp))
+        SegmentedAudioMeter(level = level, muted = muted)
+    }
+}
+
+@Composable
+private fun QuickToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    onRowClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onRowClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (checked && enabled) ElectricBlue else TextSecondary,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
             Text(
-                text = "$statusText • $volumePct%",
-                style = MaterialTheme.typography.labelMedium,
-                color = if (enabled) TextSecondary else TextMuted
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                color = if (enabled) TextPrimary else TextMuted
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
-        Spacer(modifier = Modifier.height(6.dp))
-        SegmentedAudioMeter(
-            level = level,
-            activeColor = accent,
-            muted = !enabled
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = ElectricBlue,
+                uncheckedThumbColor = TextSecondary,
+                uncheckedTrackColor = CarbonSurfaceHigh,
+                uncheckedBorderColor = CarbonBorder
+            )
         )
     }
 }
 
 @Composable
-private fun DashboardNavTile(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    accent: Color,
-    onClick: () -> Unit,
+private fun CompactMetricColumn(
+    label: String,
+    value: String,
+    caption: String,
+    valueColor: Color,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        color = CarbonSurface,
-        border = BorderStroke(1.dp, CarbonBorder)
+    Column(
+        modifier = modifier.padding(horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier.padding(13.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(accent.copy(alpha = 0.16f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
+        Text(label, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = valueColor
+        )
+        Text(
+            caption,
+            style = MaterialTheme.typography.labelSmall,
+            color = TextSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

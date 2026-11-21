@@ -7,11 +7,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTrack
-import android.media.audiofx.AcousticEchoCanceler
-import android.media.audiofx.AutomaticGainControl
-import android.media.audiofx.NoiseSuppressor
 import androidx.core.content.ContextCompat
-import com.example.data.MicAudioSource
 import com.example.data.RecorderSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,15 +36,12 @@ data class MicTestUiState(
     val clippingProtected: Boolean = false,
     val sampleProgress: Float = 0f,
     val hasRecordedSample: Boolean = false,
-    val hardwareNsAttached: Boolean = false,
-    val hardwareAecAttached: Boolean = false,
-    val hardwareAgcAttached: Boolean = false,
     val errorMessage: String? = null
 )
 
 /**
  * Real pre-recording studio microphone monitor and 5-second voice test engine.
- * Uses the exact same AudioDspProcessor and wideband 48 kHz AudioRecord settings used during recording.
+ * Runs the exact same pure 48 kHz SpectralVoiceIsolator + Anti-Heavy Studio EQ chain used in recordings.
  */
 class MicTestEngine(private val context: Context) {
 
@@ -93,9 +86,6 @@ class MicTestEngine(private val context: Context) {
             ).coerceAtLeast(4096)
 
             var audioRecord: AudioRecord? = null
-            var ns: NoiseSuppressor? = null
-            var aec: AcousticEchoCanceler? = null
-            var agc: AutomaticGainControl? = null
 
             try {
                 audioRecord = AudioRecord(
@@ -103,7 +93,7 @@ class MicTestEngine(private val context: Context) {
                     sampleRate,
                     AudioFormat.CHANNEL_IN_MONO,
                     AudioFormat.ENCODING_PCM_16BIT,
-                    minBufBytes * 3
+                    minBufBytes * 4
                 )
                 if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
                     _state.value = _state.value.copy(
@@ -111,22 +101,6 @@ class MicTestEngine(private val context: Context) {
                         errorMessage = "Could not initialize microphone hardware with selected audio source."
                     )
                     return@launch
-                }
-
-                val sessionId = audioRecord.audioSessionId
-                if (NoiseSuppressor.isAvailable()) {
-                    ns = runCatching { NoiseSuppressor.create(sessionId) }.getOrNull()
-                    ns?.enabled = latestSettings.noiseCancellation.useAndroidNs
-                }
-                if (latestSettings.micSource == MicAudioSource.VOICE_COMMUNICATION) {
-                    if (AcousticEchoCanceler.isAvailable()) {
-                        aec = runCatching { AcousticEchoCanceler.create(sessionId) }.getOrNull()
-                        aec?.enabled = latestSettings.echoReduction
-                    }
-                    if (AutomaticGainControl.isAvailable()) {
-                        agc = runCatching { AutomaticGainControl.create(sessionId) }.getOrNull()
-                        agc?.enabled = latestSettings.autoGainControl
-                    }
                 }
 
                 audioRecord.startRecording()
@@ -141,45 +115,41 @@ class MicTestEngine(private val context: Context) {
                 _state.value = _state.value.copy(
                     phase = if (captureSampleRequested) MicTestPhase.RECORDING_SAMPLE else MicTestPhase.LIVE_MONITORING,
                     sampleProgress = 0f,
-                    hardwareNsAttached = ns != null,
-                    hardwareAecAttached = aec != null,
-                    hardwareAgcAttached = agc != null,
                     errorMessage = null
                 )
 
-                var lastNsFlag = latestSettings.noiseCancellation.useAndroidNs
-
                 while (isActive) {
-                    val read = audioRecord.read(buffer, 0, frameSamples, AudioRecord.READ_BLOCKING)
-                    if (read <= 0) continue
+                    var filled = 0
+                    while (filled < frameSamples && isActive) {
+                        val n = audioRecord.read(buffer, filled, frameSamples - filled, AudioRecord.READ_BLOCKING)
+                        if (n <= 0) break
+                        filled += n
+                    }
+                    if (filled < frameSamples) continue
 
                     val s = latestSettings
-                    if (s.noiseCancellation.useAndroidNs != lastNsFlag) {
-                        lastNsFlag = s.noiseCancellation.useAndroidNs
-                        runCatching { ns?.enabled = lastNsFlag }
-                    }
-
                     val meter = dsp.processMicBufferInPlace(
                         samples = buffer,
-                        sampleCount = read,
+                        sampleCount = frameSamples,
                         micGainDb = s.micGainDb,
                         noiseCancellation = s.noiseCancellation,
                         windReductionEnabled = s.windReductionEnabled,
                         windReductionIntensity = s.windReductionIntensity,
                         voiceEnhancementEnabled = s.voiceEnhancementEnabled,
                         autoGainControl = s.autoGainControl,
-                        clippingProtection = s.clippingProtection
+                        clippingProtection = s.clippingProtection,
+                        pickupRange = s.voicePickupRange
                     )
 
                     val volumeFactor = if (s.micMuted || !s.micEnabled) 0f else s.micVolume
                     if (volumeFactor != 1.0f) {
-                        for (i in 0 until read) {
+                        for (i in 0 until frameSamples) {
                             buffer[i] = (buffer[i] * volumeFactor).toInt().coerceIn(-32768, 32767).toShort()
                         }
                     }
 
                     if (capturedShorts != null) {
-                        val copyLen = minOf(read, targetSampleCount - capturedCursor)
+                        val copyLen = minOf(frameSamples, targetSampleCount - capturedCursor)
                         if (copyLen > 0) {
                             System.arraycopy(buffer, 0, capturedShorts, capturedCursor, copyLen)
                             capturedCursor += copyLen
@@ -217,9 +187,6 @@ class MicTestEngine(private val context: Context) {
             } finally {
                 runCatching { audioRecord?.stop() }
                 runCatching { audioRecord?.release() }
-                runCatching { ns?.release() }
-                runCatching { aec?.release() }
-                runCatching { agc?.release() }
             }
 
             if (captureSampleRequested && recordedSamplePcm != null) {

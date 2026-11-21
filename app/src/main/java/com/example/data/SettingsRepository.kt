@@ -54,6 +54,7 @@ class SettingsRepository(private val context: Context) {
         val CLIPPING_PROTECTION = booleanPreferencesKey("clipping_protection")
 
         val NOISE_CANCELLATION = stringPreferencesKey("noise_cancellation")
+        val VOICE_PICKUP_RANGE = stringPreferencesKey("voice_pickup_range")
         val WIND_REDUCTION_ENABLED = booleanPreferencesKey("wind_reduction_enabled")
         val WIND_REDUCTION_INTENSITY = floatPreferencesKey("wind_reduction_intensity")
         val VOICE_ENHANCEMENT = booleanPreferencesKey("voice_enhancement")
@@ -82,6 +83,7 @@ class SettingsRepository(private val context: Context) {
         val MAX_DURATION_MIN = intPreferencesKey("max_duration_min")
         val FILE_PREFIX = stringPreferencesKey("file_prefix")
         val AUDIO_V2_MIGRATED = booleanPreferencesKey("audio_v2_migrated")
+        val AUDIO_V3_MIGRATED = booleanPreferencesKey("audio_v3_migrated")
     }
 
     val settingsFlow: Flow<RecorderSettings> = context.recorderDataStore.data
@@ -106,6 +108,7 @@ class SettingsRepository(private val context: Context) {
         context.recorderDataStore.edit { prefs ->
             prefs.clear()
             prefs[Keys.AUDIO_V2_MIGRATED] = true
+            prefs[Keys.AUDIO_V3_MIGRATED] = true
         }
     }
 
@@ -129,6 +132,7 @@ class SettingsRepository(private val context: Context) {
                 smartVoiceBalance = preset.smartVoiceBalance,
                 clippingProtection = true,
                 noiseCancellation = preset.noiseCancellation,
+                voicePickupRange = VoicePickupRange.CLOSE,
                 windReductionEnabled = false,
                 windReductionIntensity = 0.50f,
                 voiceEnhancementEnabled = preset.voiceEnhancement,
@@ -140,22 +144,37 @@ class SettingsRepository(private val context: Context) {
 
     private fun readFromPrefs(prefs: Preferences): RecorderSettings {
         val defaults = RecorderSettings()
-        val migratedV2 = prefs[Keys.AUDIO_V2_MIGRATED] ?: false
+        val migratedV3 = prefs[Keys.AUDIO_V3_MIGRATED] ?: false
 
-        // One-time transparent upgrade for users updating from v1.0 so old VOICE_COMMUNICATION /
-        // stacked AGC settings never carry over crackling or distorted voice!
-        val effectiveMicSource = if (migratedV2) {
+        // One-time transparent upgrade for users updating from v1.0 / v1.1 so everyone gets
+        // the new v1.2 Close-Range Spectral Voice Isolator + clean 0 dB studio mic tuning!
+        val effectiveMicSource = if (migratedV3) {
             enumOrDefault(prefs[Keys.MIC_SOURCE], defaults.micSource)
         } else {
             MicAudioSource.MIC
         }
-        val effectiveMicGain = if (migratedV2) {
+        val effectiveMicGain = if (migratedV3) {
             (prefs[Keys.MIC_GAIN_DB] ?: defaults.micGainDb).coerceIn(-6f, 12f)
         } else {
             defaults.micGainDb
         }
-        val effectiveAgc = if (migratedV2) (prefs[Keys.AUTO_GAIN_CONTROL] ?: defaults.autoGainControl) else false
-        val effectiveEcho = if (migratedV2) (prefs[Keys.ECHO_REDUCTION] ?: defaults.echoReduction) else false
+        val effectiveNc = if (migratedV3) {
+            enumOrDefault(prefs[Keys.NOISE_CANCELLATION], defaults.noiseCancellation)
+        } else {
+            NoiseCancellationLevel.HIGH
+        }
+        val effectivePickupRange = if (migratedV3) {
+            enumOrDefault(prefs[Keys.VOICE_PICKUP_RANGE], defaults.voicePickupRange)
+        } else {
+            VoicePickupRange.CLOSE
+        }
+        val effectiveVoiceEnh = if (migratedV3) {
+            prefs[Keys.VOICE_ENHANCEMENT] ?: defaults.voiceEnhancementEnabled
+        } else {
+            true
+        }
+        val effectiveAgc = if (migratedV3) (prefs[Keys.AUTO_GAIN_CONTROL] ?: defaults.autoGainControl) else false
+        val effectiveEcho = if (migratedV3) (prefs[Keys.ECHO_REDUCTION] ?: defaults.echoReduction) else false
 
         return RecorderSettings(
             resolution = enumOrDefault(prefs[Keys.RESOLUTION], defaults.resolution),
@@ -182,10 +201,11 @@ class SettingsRepository(private val context: Context) {
             teamVoiceMuted = prefs[Keys.GAME_MUTED] ?: defaults.gameAudioMuted,
             smartVoiceBalance = prefs[Keys.SMART_VOICE_BALANCE] ?: defaults.smartVoiceBalance,
             clippingProtection = prefs[Keys.CLIPPING_PROTECTION] ?: defaults.clippingProtection,
-            noiseCancellation = enumOrDefault(prefs[Keys.NOISE_CANCELLATION], defaults.noiseCancellation),
+            noiseCancellation = effectiveNc,
+            voicePickupRange = effectivePickupRange,
             windReductionEnabled = prefs[Keys.WIND_REDUCTION_ENABLED] ?: defaults.windReductionEnabled,
             windReductionIntensity = (prefs[Keys.WIND_REDUCTION_INTENSITY] ?: defaults.windReductionIntensity).coerceIn(0f, 1f),
-            voiceEnhancementEnabled = prefs[Keys.VOICE_ENHANCEMENT] ?: defaults.voiceEnhancementEnabled,
+            voiceEnhancementEnabled = effectiveVoiceEnh,
             autoGainControl = effectiveAgc,
             echoReduction = effectiveEcho,
             customGameVolume = prefs[Keys.CUSTOM_GAME_VOL] ?: defaults.customGameVolume,
@@ -243,6 +263,7 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.CLIPPING_PROTECTION] = s.clippingProtection
 
         prefs[Keys.NOISE_CANCELLATION] = s.noiseCancellation.name
+        prefs[Keys.VOICE_PICKUP_RANGE] = s.voicePickupRange.name
         prefs[Keys.WIND_REDUCTION_ENABLED] = s.windReductionEnabled
         prefs[Keys.WIND_REDUCTION_INTENSITY] = s.windReductionIntensity
         prefs[Keys.VOICE_ENHANCEMENT] = s.voiceEnhancementEnabled
@@ -271,6 +292,7 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.MAX_DURATION_MIN] = s.maxDurationMinutes
         prefs[Keys.FILE_PREFIX] = s.fileNamePrefix
         prefs[Keys.AUDIO_V2_MIGRATED] = true
+        prefs[Keys.AUDIO_V3_MIGRATED] = true
     }
 
     private inline fun <reified T : Enum<T>> enumOrDefault(raw: String?, default: T): T {

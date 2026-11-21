@@ -313,7 +313,7 @@ fun VideoPlayerScreen(
                     Button(
                         onClick = { showTrimmer = !showTrimmer },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (showTrimmer) NeonViolet else CarbonSurfaceHigh
+                            containerColor = if (showTrimmer) ElectricBlue else CarbonSurfaceHigh
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier.testTag("player_toggle_trimmer_button")
@@ -329,18 +329,18 @@ fun VideoPlayerScreen(
             if (showTrimmer && !isFullscreen) {
                 val startMs = (trimRange.start * totalDurationMs).toLong()
                 val endMs = (trimRange.endInclusive * totalDurationMs).toLong()
-                GamingCard(accentColor = NeonViolet) {
+                GamingCard {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Fast Lossless Trimmer", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
-                        StatusPill(text = "NON-DESTRUCTIVE", color = SignalGreen, leadingDot = false)
+                        Text("Lossless Trimmer", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                        StatusPill(text = "Keeps Original", color = SignalGreen, leadingDot = false)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "Exports a new trimmed clip directly to Movies/ZeroRecorder/ without modifying the original recording.",
+                        "Exports a new trimmed clip to Movies/ZeroRecorder without changing the original file.",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -349,9 +349,9 @@ fun VideoPlayerScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Start: ${formatMs(startMs)}", style = MaterialTheme.typography.labelMedium, color = CyberCyan)
-                        Text("Clip: ${formatMs((endMs - startMs).coerceAtLeast(0L))}", style = MaterialTheme.typography.labelMedium, color = NeonViolet)
-                        Text("End: ${formatMs(endMs)}", style = MaterialTheme.typography.labelMedium, color = CyberCyan)
+                        Text("Start: ${formatMs(startMs)}", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                        Text("Clip: ${formatMs((endMs - startMs).coerceAtLeast(0L))}", style = MaterialTheme.typography.labelMedium, color = ElectricBlue)
+                        Text("End: ${formatMs(endMs)}", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                     }
                     RangeSlider(
                         value = trimRange,
@@ -360,7 +360,7 @@ fun VideoPlayerScreen(
                             videoViewRef?.seekTo((range.start * totalDurationMs).toInt())
                         },
                         valueRange = 0f..1f,
-                        colors = SliderDefaults.colors(thumbColor = NeonViolet, activeTrackColor = NeonViolet),
+                        colors = SliderDefaults.colors(thumbColor = ElectricBlue, activeTrackColor = ElectricBlue),
                         modifier = Modifier.testTag("player_trim_range_slider")
                     )
 
@@ -372,7 +372,7 @@ fun VideoPlayerScreen(
                             .fillMaxWidth()
                             .height(48.dp)
                             .testTag("export_trimmed_video_button"),
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonViolet)
+                        colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
                     ) {
                         if (trimInProgress) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
